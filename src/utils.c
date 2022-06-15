@@ -35,6 +35,12 @@ void parse_arguments(int argc, char * argv[], Predictor *type, uint32_t* width)
 		if (argc != 7)
 			_output_error_exit("wrong number of input parameters")
 	}
+	else if (strcmp(argv[1], "tage") == 0)
+	{
+		*type = tage;
+		if (argc != 7) // the same as gshare, 因为tage的参数都目前都被定死了
+			_output_error_exit("wrong number of input parameters")
+	}
 	else
 		_output_error_exit("invalid predictor type")
 
@@ -76,6 +82,10 @@ void parse_arguments(int argc, char * argv[], Predictor *type, uint32_t* width)
 		width[ASSOC] = atoi(argv[5]);
 		trace_file = argv[6];
 		break;
+	}
+	case tage: // TODO: add new parameter
+	{
+		trace_file = argv[6];
 	}
 	}
 }

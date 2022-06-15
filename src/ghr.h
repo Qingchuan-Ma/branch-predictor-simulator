@@ -9,12 +9,11 @@
 typedef struct GHR_Attributes
 {
 	uint32_t history_width;
-	uint32_t history_one;
 }GHR_Attributes;
 
 typedef struct GHR
 {
-	uint32_t history;
+	uint64_t history;
 	GHR_Attributes attributes;
 }GHR;
 

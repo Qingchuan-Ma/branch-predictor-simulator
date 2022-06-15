@@ -8,10 +8,10 @@
 
 typedef struct BHT_Attributes
 {
-	uint32_t history_num;
-	uint32_t index_width;
-	uint32_t history_width;
-	uint64_t history_one;
+	uint32_t history_num;     	// pow_2(index_width)
+	uint32_t index_width; 
+	uint32_t history_width;      
+	uint64_t history_one;		// pow_2(history_width-1)
 }BHT_Attributes;
 
 typedef struct BHT

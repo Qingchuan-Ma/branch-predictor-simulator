@@ -5,6 +5,7 @@
 
 #define UINT32_MAX 4294967295
 
+//  this is for width index
 #define BIMODAL 0
 #define GSHARE 1
 #define HYBRID 2
@@ -14,6 +15,7 @@
 #define BCTable 6
 #define BHTable 7
 #define ASSOC 8
+#define BOOM_TAGE 9
 
 #define NOT_BRANCH 0
 #define BRANCH 1
@@ -54,16 +56,18 @@ typedef enum Predictor
 	bimodal = BIMODAL,
 	gshare = GSHARE,
 	hybrid = HYBRID,
-	yeh_patt = YEH_PATT
+	yeh_patt = YEH_PATT,
+	boom_tage = BOOM_TAGE
 }Predictor;
 
 typedef struct Result
 {
 	Predictor predict_predictor;
 	Branch_Result predict_branch;
-	Taken_Result predict_taken[4];
+	Taken_Result predict_taken[5];
 	Branch_Result actual_branch;
 	Taken_Result actual_taken;
+	void* meta_info;
 }Result;
 
 typedef struct Stat

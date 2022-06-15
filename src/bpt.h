@@ -21,8 +21,8 @@ typedef enum Two_Bit_Counter
 
 typedef struct BPT_Attributes
 {
-	uint64_t counter_num;
-	uint32_t index_width;
+	uint64_t counter_num;   // table entry num  = pow(index_width)
+	uint32_t index_width;   
 }BPT_Attributes;
 
 typedef struct BPT

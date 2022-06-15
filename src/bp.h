@@ -9,6 +9,7 @@
 #include "bht.h"
 #include "ghr.h"
 #include "bct.h"
+#include "tage.h"
 
 typedef BPT BP_Bimodal;
 
@@ -27,9 +28,22 @@ typedef struct BP_Hybrid
 
 typedef struct BP_Yeh_Patt
 {
-	BHT* branch_histroy_table;
+	BHT* branch_histroy_table;  	//正常不需要branch histroy table：这个结构是用于记录该branch的历史的跳转情况的，除了该预测器其他预测器并未使用
 	BPT* branch_predition_table;
 }BP_Yeh_Patt;
+
+typedef struct BP_TAGE
+{
+	TAGE* tage_without_base;
+	GHR* global_history_register;
+}BP_TAGE;
+
+
+typedef struct BP_TAGE_B  // tage with base
+{
+	BP_Bimodal* alt_bp;
+	BP_TAGE* tage;
+}BP_TAGE_B;
 
 typedef struct BP
 {
@@ -39,7 +53,7 @@ typedef struct BP
 
 extern BP* branch_predictor;
 
-/*
+/*  参数太多了
  *	Initial the branch_predictor
  *	input	:
  *		type	:	the type of the predictor
