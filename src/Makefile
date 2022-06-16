@@ -1,20 +1,20 @@
 
 # Branch Predictor simulator Makefile
 PROG = sim_bp
-SRCS = main.c utils.c btb.c bct.c bht.c bpt.c ghr.c bp.c
+SRCS = main.c utils.c btb.c bct.c bht.c bpt.c ghr.c bp.c tage.c
 OBJS = $(SRCS:.c=.o)
 CLEANFILES = $(PROG) $(OBJS)
 
 # input parameter
 # for debug, input $make FLAG="-g -D DBG"
-FLAG = 
+FLAG = -g -D MyDBG
 
 # Compiler options
 CC = gcc
 WARN = -Wall
 OPTIMIZER = -O3
 CFLAGS = $(WARN) -c $(FLAG) $(OPTIMIZER)
-LFLAGS = $(WARN) $(FLAG) $(OPTIMIZER)
+LFLAGS = $(WARN) $(FLAG) $(OPTIMIZER) -lm
 
 # default rule
 all: $(PROG)
@@ -22,7 +22,7 @@ all: $(PROG)
 
 # rule for making sim_bp
 $(PROG): $(OBJS)
-	$(CC) $(LFLAGS) $(OBJS) -o $@
+	$(CC) $(OBJS) -o $@ $(LFLAGS)
 	@echo "-----------DONE WITH SIM_BP-----------"
 
 # generic rule for converting any .c file to any .o file

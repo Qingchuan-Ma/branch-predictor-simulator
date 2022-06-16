@@ -37,8 +37,8 @@ void parse_arguments(int argc, char * argv[], Predictor *type, uint32_t* width)
 	}
 	else if (strcmp(argv[1], "tage") == 0)
 	{
-		*type = tage;
-		if (argc != 7) // the same as gshare, 因为tage的参数都目前都被定死了
+		*type = boom_tage;
+		if (argc != 6) // the same as bimodal, 因为tage的参数都目前都被定死了
 			_output_error_exit("wrong number of input parameters")
 	}
 	else
@@ -83,9 +83,12 @@ void parse_arguments(int argc, char * argv[], Predictor *type, uint32_t* width)
 		trace_file = argv[6];
 		break;
 	}
-	case tage: // TODO: add new parameter
+	case boom_tage: // TODO: add new parameter
 	{
-		trace_file = argv[6];
+		width[BIMODAL] = atoi(argv[2]);
+		width[BTBuffer] = atoi(argv[3]);
+		width[ASSOC] = atoi(argv[4]);
+		trace_file = argv[5];
 	}
 	}
 }
@@ -95,35 +98,42 @@ void Stat_Init()
 	stat.num_branches = 0;
 	stat.num_prediction = 0;
 	stat.misprediction_rate = 0;
-	memset(stat.num_misprediction, 0, sizeof(uint64_t) * 6);
+	stat.num_misprediction[BTBuffer] = 0;
+	memset(stat.num_misprediction, 0, sizeof(uint64_t) * (BP_MAX + 1));
 }
 
-uint32_t Get_Index(uint32_t addr, uint32_t index_width)
+uint64_t Get_Index(uint64_t addr, uint32_t index_width)
 {
-	return (addr << (30 - index_width)) >> (32 - index_width);
+	return (addr << (62 - index_width)) >> (64 - index_width);
+	// return (addr << (30 - index_width)) >> (32 - index_width);
 }
 
 void Update_Stat(Result result)
 {
 	if (result.actual_branch == BRANCH)
-		stat.num_branches++;
+		stat.num_branches++;  // num_branch表明branch总数
 	if (result.predict_branch == not_branch && result.actual_branch == branch && result.actual_taken == taken)
-		stat.num_misprediction[BTBuffer]++;
-	if (result.predict_branch == not_branch)
+		stat.num_misprediction[BTBuffer]++; // BTB位置的错误预测值表示 预测不是branch但是真实是branch的个数
+	if (result.predict_branch == not_branch)  // 没有BTB不会进入到该if语句
 	{
-		stat.num_misprediction[5] = stat.num_misprediction[branch_predictor->predictor_type] + stat.num_misprediction[BTBuffer];
-		stat.misprediction_rate = (double)stat.num_misprediction[5] / (double)stat.num_prediction * 100.0;
+		stat.num_misprediction[BP_MAX+1] = stat.num_misprediction[branch_predictor->predictor_type] + stat.num_misprediction[BTBuffer];
+		// 最后一个位置的错误预测值表示 该预测器预测错误+BTB预测错误；相当于总预测错误率；没有BTB的情况下就等于该预测器预测错误值
+		stat.misprediction_rate = (double)stat.num_misprediction[BP_MAX+1] / (double)stat.num_prediction * 100.0;
 		return;
 	}
-	stat.num_prediction++;
+	stat.num_prediction++; // 总预测次数
 	if (result.actual_taken != result.predict_taken[branch_predictor->predictor_type])
 	{
 		stat.num_misprediction[branch_predictor->predictor_type]++;
 		if (branch_predictor->predictor_type == hybrid)
 			stat.num_misprediction[result.predict_predictor]++;
 	}
-	stat.num_misprediction[5] = stat.num_misprediction[branch_predictor->predictor_type] + stat.num_misprediction[BTBuffer];
-	stat.misprediction_rate = (double)stat.num_misprediction[5] / (double)stat.num_branches * 100.0;
+	
+#ifdef MyDBG1
+	printf("BTBuffer misprediction number: %d\n", stat.num_misprediction[BTBuffer]);
+#endif
+	stat.num_misprediction[BP_MAX+1] = stat.num_misprediction[branch_predictor->predictor_type] + stat.num_misprediction[BTBuffer];
+	stat.misprediction_rate = (double)stat.num_misprediction[BP_MAX+1] / (double)stat.num_branches * 100.0;
 }
 
 void Result_fprintf(FILE *fp, int argc, char* argv[])

@@ -25,12 +25,19 @@ void BPT_Initial(BPT* BranchPredictionTable, uint32_t index_width)
 
 Taken_Result BPT_Predict(BPT* BranchPredictionTable, uint64_t index)
 {
+	
+		#ifdef MyDBG1
+			printf("index: %d, counter[index]: %d\n", index, BranchPredictionTable->counter[index]);
+		#endif
+
 	switch (BranchPredictionTable->counter[index])
 	{
+		
 	case strongly_taken:
 	case weakly_taken:
 		return taken;
 	default:
+			
 		return not_taken;
 	}
 }

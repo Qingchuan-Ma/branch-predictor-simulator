@@ -46,7 +46,7 @@ void BTB_Init(uint32_t assoc, uint32_t index_width);
 /*
  *	Interpreter the address into tag, index
  */
-void Interpret_Address(uint32_t addr, uint32_t *tag, uint32_t *index);
+void Interpret_Address(uint64_t addr, uint32_t *tag, uint32_t *index);
 
 /*
  *	Rebuild address from tag and index
@@ -84,7 +84,7 @@ void BTB_Replacement(uint32_t index, uint32_t way_num, uint32_t tag);
  *	return	:
  *		the prediction on whether inst is branch -- BRANCH or NOT_BRANCH
  */
-Branch_Result BTB_Predict(uint32_t addr);
+Branch_Result BTB_Predict(uint64_t addr);
 
 /*
  *	Update the branch_target_buffer
@@ -93,7 +93,7 @@ Branch_Result BTB_Predict(uint32_t addr);
  *		result		:	struct "Result", the prediction and actual result
  *		rank_value	:	the index of the instr
  */
-void BTB_Update(uint32_t addr, Result result, uint64_t rank_value);
+void BTB_Update(uint64_t addr, Result result, uint64_t rank_value);
 
 /*
  * Print the content of branch_target_buffer to file *fp

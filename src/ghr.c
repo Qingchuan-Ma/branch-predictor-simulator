@@ -26,7 +26,7 @@ void GHR_Update(GHR *GlobalBranchHistoryRegister, Result result)
 
 void GHR_fprintf(GHR *GlobalBranchHistoryRegister, FILE *fp)
 {
-	fprintf(fp, "0x\t\t%x\n", GlobalBranchHistoryRegister->history);
+	fprintf(fp, "0x\t\t%llx\n", GlobalBranchHistoryRegister->history);
 }
 
 uint64_t GHR_Get_Len(GHR *GlobalBranchHistoryRegister,  uint32_t len)

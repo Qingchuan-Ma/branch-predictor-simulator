@@ -96,7 +96,7 @@ void Predictor_Init(Predictor type, uint32_t* width)
 		predictor->alt_bp = (BP_Bimodal *)malloc(sizeof(BP_Bimodal));
 		if (predictor->alt_bp == NULL)
 			_error_exit("malloc")
-		BPT_Initial((BPT *)branch_predictor->predictor, width[BIMODAL]);
+		BPT_Initial((BPT *)predictor->alt_bp, width[BIMODAL]);
 		/* initial tage*/
 		predictor->tage = (BP_TAGE *)malloc(sizeof(BP_TAGE));
 		predictor->tage->tage_without_base = (TAGE *)malloc(sizeof(TAGE));
@@ -104,19 +104,19 @@ void Predictor_Init(Predictor type, uint32_t* width)
 
 		/* initial global history register */
 		predictor->tage->global_history_register = (GHR *)malloc(sizeof(GHR));
-		GHR_Initial(predictor->global_history_register, tageHistLen);
+		GHR_Initial(predictor->tage->global_history_register, tageHistLen);  // 先固定history再说
 		return;
 	}
 	}
 }
 
-Taken_Result Bimodal_Predict(BP_Bimodal *predictor, uint32_t addr)
+Taken_Result Bimodal_Predict(BP_Bimodal *predictor, uint64_t addr)
 {
 	uint32_t index = Get_Index(addr, ((BPT *)predictor)->attributes.index_width);
 	return BPT_Predict((BPT *)predictor, index);
 }
 
-Taken_Result Gshare_Predict(BP_Gshare *predictor, uint32_t addr)
+Taken_Result Gshare_Predict(BP_Gshare *predictor, uint64_t addr)
 {
 	uint32_t h = predictor->global_history_register->attributes.history_width;
 	uint32_t i = predictor->branch_prediction_table->attributes.index_width;
@@ -129,14 +129,14 @@ Taken_Result Gshare_Predict(BP_Gshare *predictor, uint32_t addr)
 	return BPT_Predict(predictor->branch_prediction_table, index);
 }
 
-Tage_Meta* Tage_Predict(BP_TAGE *predictor, uint32_t addr)
+Tage_Meta* Tage_Predict(BP_TAGE *predictor, uint64_t addr)
 {
 	uint64_t ghist = predictor->global_history_register->history;
-	uint32_t unhashed_idx = Get_Index(addr, 30);  // 把pc[32:2]给传进去了
+	uint64_t unhashed_idx = Get_Index(addr, 62);  // 把pc[64:2]给传进去了
 	return TAGE_Predict(predictor->tage_without_base, unhashed_idx, ghist);
 }
 
-Result Predictor_Predict(uint32_t addr)
+Result Predictor_Predict(uint64_t addr)
 {
 	Result result;
 	result.predict_predictor = branch_predictor->predictor_type;
@@ -173,12 +173,22 @@ Result Predictor_Predict(uint32_t addr)
 	}
 	case boom_tage:
 	{
+		
+
 		BP_TAGE_B *predictor = branch_predictor->predictor;
+
 		result.predict_taken[BIMODAL] = Bimodal_Predict(predictor->alt_bp, addr);
-		Tage_Meta *tage_mata = Tage_Predict(predictor->tage, addr);
-		result.predict_taken[TAGE] = tage_mata->altpred;
-		tage_mata->alt_differs = tage_mata->altpred == result.predict_taken[BIMODAL];
-		result.meta_info = (Tage_Meta *)tage_mata;
+		
+		Tage_Meta *tage_meta = Tage_Predict(predictor->tage, addr);
+
+		result.predict_taken[BOOM_TAGE] = tage_meta->provided ? tage_meta->altpred : result.predict_taken[BIMODAL];
+		tage_meta->alt_differs = tage_meta->provided ? 1 : tage_meta->altpred != result.predict_taken[BIMODAL];
+		#ifdef MyDBG1
+		if(tage_meta->alt_differs==1)
+			printf("addr: %lx, alt_differs: 0\n", addr, tage_meta->alt_differs);
+		#endif
+		result.meta_info = (Tage_Meta *)tage_meta;
+		
 		return result;
 	}
 	default:
@@ -186,13 +196,13 @@ Result Predictor_Predict(uint32_t addr)
 	}
 }
 
-void Bimodal_Update(BP_Bimodal *predictor, uint32_t addr, Result result)
+void Bimodal_Update(BP_Bimodal *predictor, uint64_t addr, Result result)
 {
 	uint32_t index = Get_Index(addr, ((BPT *)predictor)->attributes.index_width);
 	BPT_Update(predictor, index, result);
 }
 
-void Gshare_Update(BP_Gshare *predictor, uint32_t addr, Result result)
+void Gshare_Update(BP_Gshare *predictor, uint64_t addr, Result result)
 {
 	uint32_t h = predictor->global_history_register->attributes.history_width;
 	uint32_t i = predictor->branch_prediction_table->attributes.index_width;
@@ -204,14 +214,14 @@ void Gshare_Update(BP_Gshare *predictor, uint32_t addr, Result result)
 	BPT_Update(predictor->branch_prediction_table, index, result);
 }
 
-void Tage_Update(BP_TAGE* predictor, uint32_t addr, Result result)
+void Tage_Update(BP_TAGE* predictor, uint64_t addr, Result result)
 {
 	uint64_t ghist = predictor->global_history_register->history;
-	uint32_t unhashed_idx = Get_Index(addr, 30);  // 把pc[32:2]给传进去了
+	uint64_t unhashed_idx = Get_Index(addr, 62);  // 把pc[64:2]给传进去了
 	return TAGE_Update(predictor->tage_without_base, unhashed_idx, ghist, result);
 }
 
-void Predictor_Update(uint32_t addr, Result result)
+void Predictor_Update(uint64_t addr, Result result)
 {
 	switch (branch_predictor->predictor_type)
 	{
@@ -246,16 +256,19 @@ void Predictor_Update(uint32_t addr, Result result)
 		BHT_Update(predictor->branch_histroy_table, addr, result);
 		return;
 	}
-	case:
+	case boom_tage:
+	{
 		BP_TAGE_B *predictor = branch_predictor->predictor;
 		Bimodal_Update(predictor->alt_bp, addr, result);
 		Tage_Update(predictor->tage, addr, result);
+		
 		GHR_Update(predictor->tage->global_history_register, result);
 		return;
 	}
+	}
 }
 
-void BP_fprintf(FILE *fp)
+void BP_fprintf(FILE *fp)  // 打印最后的final table
 {
 	switch (branch_predictor->predictor_type)
 	{
@@ -301,5 +314,33 @@ void BP_fprintf(FILE *fp)
 		BPT_fprintf(predictor->branch_predition_table, fp);
 		return;
 	}
+	case boom_tage:
+	{
+		return;
+	}
+	}
+}
+
+
+void Predictor_Clear(uint64_t addr, uint64_t old_target)
+{
+	uint32_t cycle = addr - old_target;
+	
+	switch (branch_predictor->predictor_type)
+	{
+	case boom_tage:
+	{
+		BP_TAGE_B *predictor = branch_predictor->predictor;
+		if(cycle > tageUPeriod)
+		{
+			#ifdef MyDBG1
+			printf("do clear\n"); 
+			#endif
+			TAGE_Clear(predictor->tage->tage_without_base);
+		}
+		return;
+	}
+	default:
+		return;
 	}
 }

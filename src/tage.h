@@ -3,8 +3,10 @@
  */
 #pragma once
 
-#ifndef TAGETABLE_H_
-#define TAGETABLE_H_
+#ifndef TAGE_H_
+#define TAGE_H_
+
+#include <stdbool.h>
 
 #define tageHistLen 64
 #define tageTableNum 6
@@ -46,7 +48,7 @@ typedef struct TageTable
 typedef struct Tage_Meta
 {
     int32_t provider;
-    uint32_t provided;
+    bool provided;
     uint32_t altpred;
     uint32_t provider_u; // 用于更新u
     uint32_t provider_ctr; // 用于更新ctr
@@ -56,30 +58,12 @@ typedef struct Tage_Meta
 }Tage_Meta;
 
 
-extern uint32_t tageTableInfo[tageTableNum][3] = {
-    // nSets, histLen, tagSz
-    {  128,       2,     7},
-    {  128,       4,     7},
-    {  256,       8,     8},
-    {  256,      16,     8},
-    {  128,      32,     9},
-    {  128,      64,     9}
-};
 
 typedef struct Tage_Attributes
 {
     uint32_t tableNum;
 }Tage_Attributes;
 
-/* 以下是BOOM的参数输入，目前这些参数不太好传入进去，就先固定下来
-                                               nSets, histLen, tagSz
-   tageTableInfo Seq[Tuple3[Int, Int, Int]] = Seq((  128,       2,     7),
-                                              (  128,       4,     7),
-                                              (  256,       8,     8),
-                                              (  256,      16,     8),
-                                              (  128,      32,     9),
-                                              (  128,      64,     9)),
-*/
 
 typedef struct TAGE
 {
@@ -95,7 +79,7 @@ typedef struct TAGE
  *						hybrid:		(bimodal) i_B	(gshare) i_G
  *						yehpatt:	p
  */
-void TAGE_Predict(TAGE* tage, uint32_t unhashed_idx, uint64_t ghist) //, uint32_t index_width); 所有参数目前都是固定的，所以没有进行传参
+void TAGE_Initial(TAGE* tage); //, uint32_t index_width); 所有参数目前都是固定的，所以没有进行传参
 
 /*
  *	Search the TageTables for entry of "index" and tag match to make prediction
@@ -105,7 +89,7 @@ void TAGE_Predict(TAGE* tage, uint32_t unhashed_idx, uint64_t ghist) //, uint32_
  *	return	:
  *		the tage prediction meta info
  */
-Tage_Meta* TAGE_Predict(TAGE* tage, uint64_t index, uint32_t tag);
+Tage_Meta* TAGE_Predict(TAGE* tage, uint64_t unhashed_idx, uint64_t ghist);
 
 /*
  *	Update the BranchPredictionTable
@@ -113,13 +97,17 @@ Tage_Meta* TAGE_Predict(TAGE* tage, uint64_t index, uint32_t tag);
  *		index	:	index of counter
  *		result	:	struct "Result", the prediction and actual result
  */
-void TAGE_Update(TAGE* tage, uint32_t unhashed_idx, uint64_t ghist, Result result);
+void TAGE_Update(TAGE* tage, uint64_t unhashed_idx, uint64_t ghist, Result result);
 
 
 
 /*
  * Print the content of BranchPredictionTable to file *fp
  */
-void TAGE_fprintf(TageTable* tage_table, FILE *fp);
+void TAGE_fprintf(TAGE* tage, FILE *fp);
+
+
+void TAGE_Clear(TAGE* tage);
+
 
 #endif

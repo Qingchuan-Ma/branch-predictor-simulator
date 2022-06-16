@@ -10,12 +10,20 @@
 #define GSHARE 1
 #define HYBRID 2
 #define YEH_PATT 3
-#define BTBuffer 4
-#define GHRegister 5
-#define BCTable 6
-#define BHTable 7
-#define ASSOC 8
-#define BOOM_TAGE 9
+#define BOOM_TAGE 4
+#define BP_MAX 5
+// 以上是分支预测器种类，还可以继续加；以下是width index
+
+
+#define BTBuffer 5
+#define GHRegister 6
+#define BCTable 7
+#define BHTable 8
+#define ASSOC 9
+
+// 一共有多少个width
+#define WIDTH_MAX 10
+
 
 #define NOT_BRANCH 0
 #define BRANCH 1
@@ -64,7 +72,7 @@ typedef struct Result
 {
 	Predictor predict_predictor;
 	Branch_Result predict_branch;
-	Taken_Result predict_taken[5];
+	Taken_Result predict_taken[BP_MAX];
 	Branch_Result actual_branch;
 	Taken_Result actual_taken;
 	void* meta_info;
@@ -74,7 +82,7 @@ typedef struct Stat
 {
 	uint64_t num_branches;
 	uint64_t num_prediction;
-	uint64_t num_misprediction[6];
+	uint64_t num_misprediction[BP_MAX+2];  // 所有BP的情况，在加上一个BTB，在加上一个总的
 	double misprediction_rate;
 }Stat;
 
@@ -105,7 +113,7 @@ void Stat_Init();
 /*
  *	get index from "addr"
  */
-uint32_t Get_Index(uint32_t addr, uint32_t index_width);
+uint64_t Get_Index(uint64_t addr, uint32_t index_width);
 
 /*
  *	Update the stat according to result

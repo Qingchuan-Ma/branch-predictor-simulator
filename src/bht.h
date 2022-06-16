@@ -37,7 +37,7 @@ void BHT_Initial(BHT *BranchHistoryTable, uint32_t index_width, uint32_t history
  *	return	:
  *		the history pattern of correspounding entry (at most 64 bits, hence uint64_t)
  */
-uint64_t BHT_Search(BHT *BranchHistoryTable, uint32_t addr);
+uint64_t BHT_Search(BHT *BranchHistoryTable, uint64_t addr);
 
 /*
  *	Update the BranchPredictionTable
@@ -45,7 +45,7 @@ uint64_t BHT_Search(BHT *BranchHistoryTable, uint32_t addr);
  *		addr	:	PC
  *		result	:	struct "Result", the prediction and actual result
  */
-void BHT_Update(BHT *BranchHistoryTable, uint32_t addr, Result result);
+void BHT_Update(BHT *BranchHistoryTable, uint64_t addr, Result result);
 
 /*
  * Print the content of BranchHistoryTable to file *fp

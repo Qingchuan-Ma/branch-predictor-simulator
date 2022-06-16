@@ -37,7 +37,7 @@ void BTB_Init(uint32_t assoc, uint32_t index_width)
 	}
 }
 
-void Interpret_Address(uint32_t addr, uint32_t *tag, uint32_t *index)
+void Interpret_Address(uint64_t addr, uint32_t *tag, uint32_t *index)
 {
 	uint32_t tag_width = branch_target_buffer->attributes.tag_width;
 	*tag = addr >> (32 - tag_width);
@@ -46,7 +46,7 @@ void Interpret_Address(uint32_t addr, uint32_t *tag, uint32_t *index)
 
 uint32_t Rebuild_Address(uint32_t tag, uint32_t index)
 {
-	uint32_t addr = 0;
+	uint64_t addr = 0;
 	addr |= (tag << (branch_target_buffer->attributes.index_width + 2));
 	addr |= (index << 2);
 	return addr;
@@ -71,7 +71,7 @@ void Rank_Maintain(uint32_t index, uint32_t way_num, uint64_t rank_value)
 	{
 		fprintf(debug_fp, "Rank: branch_target_buffer Set %u -- ", index);
 		uint32_t i;
-		for (i = 0; i < branch_target_buffer->BTB_ATTRIBUTES.ASSOC; i++)
+		for (i = 0; i < branch_target_buffer->attributes.assoc; i++)
 			fprintf(debug_fp, "%llu ", rank[i]);
 		fprintf(debug_fp, "\n");
 	}
@@ -102,7 +102,7 @@ void BTB_Replacement(uint32_t index, uint32_t way_num, uint32_t tag)
 #endif
 }
 
-Branch_Result BTB_Predict(uint32_t addr)
+Branch_Result BTB_Predict(uint64_t addr)
 {
 	uint32_t tag, index;
 	Interpret_Address(addr, &tag, &index);
@@ -112,7 +112,7 @@ Branch_Result BTB_Predict(uint32_t addr)
 	return branch;
 }
 
-void BTB_Update(uint32_t addr, Result result, uint64_t rank_value)
+void BTB_Update(uint64_t addr, Result result, uint64_t rank_value)
 {
 	uint32_t tag, index, way_num;
 	/* if predition is correct */

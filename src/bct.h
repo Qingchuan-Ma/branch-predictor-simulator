@@ -46,7 +46,7 @@ void BCT_Initial(BCT* BranchChooserTable, uint32_t index_width);
  *	return	:
  *		the prediction on which predictor is chosen
  */
-Predictor BCT_Predict(BCT* BranchChooserTable, uint32_t addr);
+Predictor BCT_Predict(BCT* BranchChooserTable, uint64_t addr);
 
 /*
  *	Update the BranchChooserTable
@@ -54,7 +54,7 @@ Predictor BCT_Predict(BCT* BranchChooserTable, uint32_t addr);
  *		addr	:	PC
  *		result	:	struct "Result", the prediction and actual result
  */
-void BCT_Update(BCT* BranchChooserTable, uint32_t addr, Result result);
+void BCT_Update(BCT* BranchChooserTable, uint64_t addr, Result result);
 
 /*
  * Print the content of BranchChooserTable to file *fp

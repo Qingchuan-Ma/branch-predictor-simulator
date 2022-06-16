@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
 
 
 	Predictor type;
-	uint32_t width[9];
+	uint32_t width[WIDTH_MAX];
 	parse_arguments(argc, argv, &type, width);
 
 	branch_target_buffer = NULL;
@@ -36,6 +36,8 @@ int main(int argc, char *argv[])
 		if (branch_target_buffer == NULL)
 			_error_exit("malloc")
 		BTB_Init(width[ASSOC], width[BTBuffer]);
+	} else {
+		// printf("There is no BTB\n");
 	}
 
 	branch_predictor = (BP *)malloc(sizeof(BP));
@@ -58,32 +60,60 @@ int main(int argc, char *argv[])
 #endif
 		/* read the trace */
 		uint8_t take_or_not, line;
-		uint32_t addr;
-		int rr = fscanf(trace_file_fp, "%x %c%c", &addr, &take_or_not, &line);
+		uint64_t addr;
+		uint64_t target;
+		uint64_t old_target = 0;
+		int rr = fscanf(trace_file_fp, "%llx, %c, %llx%c", &addr, &take_or_not, &target, &line);
 		trace_count++;
+
+#ifdef MyDBG1
+		printf("%llx, %c, %llx\n", addr, take_or_not, target);
+		if(trace_count == 10)
+			break;
+		else
+			continue;
+#endif
 		if (rr == EOF)
 			break;
 
+		if(trace_count != 0)  // 第一次不进行clear
+			Predictor_Clear(addr, old_target);  // 某些BP可能需要周期性的clear内部状态，具体函数还未编写
+
+
 		/* make branch prediction */
 		Result result = Predictor_Predict(addr);
-		if (branch_target_buffer == NULL)
+
+		if (branch_target_buffer == NULL)  // result.predict_branch由BTB来预测是否是branch指令，如果没有btb，默认都是branch指令
+		{
 			result.predict_branch = branch;
+		}
 		else
 			result.predict_branch = BTB_Predict(addr);
 
 		result.actual_branch = branch;
-		if (take_or_not == 't')
+		if (take_or_not == '1')
 			result.actual_taken = taken;
 		else
 			result.actual_taken = not_taken;
 
 		/* update the predictor and statistic data */
 		Update_Stat(result);
+
+		
 		if (result.predict_branch == branch)
 			Predictor_Update(addr, result);
 		if (branch_target_buffer != NULL)
 			BTB_Update(addr, result, trace_count);
 
+		old_target = target;
+		
+
+		#ifdef MyDBG1
+		if(trace_count == 10)
+			break;
+		else
+			continue;
+		#endif
 	}
 
 	FILE *fp = stdout;
