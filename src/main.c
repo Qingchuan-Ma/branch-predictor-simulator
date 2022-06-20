@@ -49,6 +49,7 @@ int main(int argc, char *argv[])
 	Stat_Init();
 
 	FILE *trace_file_fp = fopen(trace_file, "r");
+
 	if (trace_file_fp == NULL)
 		_error_exit("fopen")
 
@@ -85,29 +86,30 @@ int main(int argc, char *argv[])
 
 		if (branch_target_buffer == NULL)  // result.predict_branch由BTB来预测是否是branch指令，如果没有btb，默认都是branch指令
 		{
-			result.predict_branch = branch;
+			result.predict_branch.is_branch = BRANCH;
 		}
 		else
 			result.predict_branch = BTB_Predict(addr);
 
-		result.actual_branch = branch;
+		result.actual_branch.is_branch = BRANCH;
+		result.actual_branch.target = target;
+
 		if (take_or_not == '1')
-			result.actual_taken = taken;
+			result.actual_taken = TAKEN;
 		else
-			result.actual_taken = not_taken;
+			result.actual_taken = NOT_TAKEN;
 
 		/* update the predictor and statistic data */
-		Update_Stat(result);
+		Update_Stat(result, branch_target_buffer != NULL);
 
 		
-		if (result.predict_branch == branch)
+		if (result.actual_branch.is_branch == BRANCH) // 应该只要真实是branch，就应该update
 			Predictor_Update(addr, result);
 		if (branch_target_buffer != NULL)
 			BTB_Update(addr, result, trace_count);
 
-		old_target = target;
+		old_target = take_or_not ? target : addr;  // 用于计算周期数
 		
-
 		#ifdef MyDBG1
 		if(trace_count == 10)
 			break;

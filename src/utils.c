@@ -41,6 +41,12 @@ void parse_arguments(int argc, char * argv[], Predictor *type, uint32_t* width)
 		if (argc != 6) // the same as bimodal, 因为tage的参数都目前都被定死了
 			_output_error_exit("wrong number of input parameters")
 	}
+	else if (strcmp(argv[1], "tage-l") == 0)
+	{
+		*type = tage_l;
+		if (argc != 7) // the same as bimodal+1, 因为tage的参数都目前都被定死了+loop的index_width
+			_output_error_exit("wrong number of input parameters")
+	}
 	else
 		_output_error_exit("invalid predictor type")
 
@@ -89,6 +95,16 @@ void parse_arguments(int argc, char * argv[], Predictor *type, uint32_t* width)
 		width[BTBuffer] = atoi(argv[3]);
 		width[ASSOC] = atoi(argv[4]);
 		trace_file = argv[5];
+		break;
+	}
+	case tage_l:
+	{
+		width[BIMODAL] = atoi(argv[2]);
+		width[BTBuffer] = atoi(argv[3]);
+		width[ASSOC] = atoi(argv[4]);
+		width[TAGE_L] = atoi(argv[5]);   // for loop index width
+		trace_file = argv[6];
+		break;
 	}
 	}
 }
@@ -108,13 +124,21 @@ uint64_t Get_Index(uint64_t addr, uint32_t index_width)
 	// return (addr << (30 - index_width)) >> (32 - index_width);
 }
 
-void Update_Stat(Result result)
+void Update_Stat(Result result, bool BTBisExist)  // 这个函数需要大改
 {
-	if (result.actual_branch == BRANCH)
+	// 关于BTB的几种情况
+	// BTB认为不是branch，但是真实情况是branch且跳转，认为BTB预测错误, s1
+	// BTB认为不是branch，但是真实情况是branch但是不跳转，可以认为BTB预测正确: s2
+	// BTB认为是branch，且taken但是target不对，认为BTB预测错误: s3
+	// BTB认为是branch，且target对，认为BTB预测正确: s4
+	bool s1 = result.predict_branch.is_branch == NOT_BRANCH && result.actual_branch.is_branch == BRANCH && result.actual_taken == TAKEN;
+	bool s3 = result.predict_branch.is_branch == BRANCH && (result.predict_branch.target != result.actual_branch.target) && result.actual_taken == TAKEN;
+	if (result.actual_branch.is_branch == BRANCH)
 		stat.num_branches++;  // num_branch表明branch总数
-	if (result.predict_branch == not_branch && result.actual_branch == branch && result.actual_taken == taken)
-		stat.num_misprediction[BTBuffer]++; // BTB位置的错误预测值表示 预测不是branch但是真实是branch的个数
-	if (result.predict_branch == not_branch)  // 没有BTB不会进入到该if语句
+	if ((s1 || s3) && BTBisExist)
+		stat.num_misprediction[BTBuffer]++;
+
+	if ((s1 || s3) && BTBisExist)  // 如果BTB预测错误，则认为直接错误，不需要考虑后边的预测器是否预测准确，如果没有BTB，不能进该分支
 	{
 		stat.num_misprediction[BP_MAX+1] = stat.num_misprediction[branch_predictor->predictor_type] + stat.num_misprediction[BTBuffer];
 		// 最后一个位置的错误预测值表示 该预测器预测错误+BTB预测错误；相当于总预测错误率；没有BTB的情况下就等于该预测器预测错误值
@@ -143,11 +167,11 @@ void Result_fprintf(FILE *fp, int argc, char* argv[])
 	for (i = 0; i < argc; i++)
 		fprintf(fp, "%s ", argv[i]);
 	fprintf(fp, "\n\n");
-	if (branch_target_buffer != NULL)
-	{
-		BTB_fprintf(fp);
-		fprintf(fp, "\n\n");
-	}
+	// if (branch_target_buffer != NULL)
+	// {
+	// 	BTB_fprintf(fp);
+	// 	fprintf(fp, "\n\n");
+	// }
 	BP_fprintf(fp);
 	fprintf(fp, "\n");
 	fprintf(fp, "Final Branch Predictor Statistics:\n");
@@ -156,4 +180,16 @@ void Result_fprintf(FILE *fp, int argc, char* argv[])
 	fprintf(fp, "c. Number of mispredictions from the branch predictor: %llu\n", stat.num_misprediction[branch_predictor->predictor_type]);
 	fprintf(fp, "d. Number of mispredictions from the BTB: %llu\n", stat.num_misprediction[BTBuffer]);
 	fprintf(fp, "e. Misprediction Rate: %4.2f percent\n", stat.misprediction_rate);
+}
+
+
+uint32_t Saturate_Inc_UCtr(uint32_t ctr, uint32_t saturate, bool taken)
+{
+	if(taken){
+		if(ctr == saturate) return saturate;
+		else return ctr + 1;
+	} else {
+		if(ctr == 0) return 0;
+		else return ctr - 1;
+	}
 }

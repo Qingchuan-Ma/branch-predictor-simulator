@@ -107,6 +107,33 @@ void Predictor_Init(Predictor type, uint32_t* width)
 		GHR_Initial(predictor->tage->global_history_register, tageHistLen);  // 先固定history再说
 		return;
 	}
+	case tage_l:
+	{
+		branch_predictor->predictor = (BP_TAGE_L *)malloc(sizeof(BP_TAGE_L));
+		BP_TAGE_L *predictor = branch_predictor->predictor;
+
+		/* initial loop predictor */
+		predictor->bp_loop = (BP_LOOP *)malloc(sizeof(BP_LOOP));
+		LOOP_Initial(predictor->bp_loop, width[TAGE_L], 10); // 默认是10 tag_width， 一般输入index_width=4
+
+		/* initial tage predictor */
+		predictor->bp_tage_b = (BP_TAGE_B *)malloc(sizeof(BP_TAGE_B));
+		BP_TAGE_B *bp_tage_b = predictor->bp_tage_b;
+		
+		/* initial branch prediction table */
+		bp_tage_b->alt_bp = (BP_Bimodal *)malloc(sizeof(BP_Bimodal));
+		if (bp_tage_b->alt_bp == NULL)
+			_error_exit("malloc")
+		BPT_Initial((BPT *)bp_tage_b->alt_bp, width[BIMODAL]);
+		/* initial tage*/
+		bp_tage_b->tage = (BP_TAGE *)malloc(sizeof(BP_TAGE));
+		bp_tage_b->tage->tage_without_base = (TAGE *)malloc(sizeof(TAGE));
+		TAGE_Initial(bp_tage_b->tage->tage_without_base);
+
+		/* initial global history register */
+		bp_tage_b->tage->global_history_register = (GHR *)malloc(sizeof(GHR));
+		GHR_Initial(bp_tage_b->tage->global_history_register, tageHistLen);  // 先固定history再说
+	}
 	}
 }
 
@@ -134,6 +161,12 @@ Tage_Meta* Tage_Predict(BP_TAGE *predictor, uint64_t addr)
 	uint64_t ghist = predictor->global_history_register->history;
 	uint64_t unhashed_idx = Get_Index(addr, 62);  // 把pc[64:2]给传进去了
 	return TAGE_Predict(predictor->tage_without_base, unhashed_idx, ghist);
+}
+
+Loop_Meta* Loop_Predict(BP_LOOP *predictor, uint64_t addr)
+{
+	uint64_t unhashed_idx = Get_Index(addr, 62);  // 把pc[64:2]给传进去了
+	return LOOP_Predict(predictor, unhashed_idx);
 }
 
 Result Predictor_Predict(uint64_t addr)
@@ -173,8 +206,6 @@ Result Predictor_Predict(uint64_t addr)
 	}
 	case boom_tage:
 	{
-		
-
 		BP_TAGE_B *predictor = branch_predictor->predictor;
 
 		result.predict_taken[BIMODAL] = Bimodal_Predict(predictor->alt_bp, addr);
@@ -187,8 +218,31 @@ Result Predictor_Predict(uint64_t addr)
 		if(tage_meta->alt_differs==1)
 			printf("addr: %lx, alt_differs: 0\n", addr, tage_meta->alt_differs);
 		#endif
-		result.meta_info = (Tage_Meta *)tage_meta;
+		result.meta_info[BOOM_TAGE] = (Tage_Meta *)tage_meta;
 		
+		return result;
+	}
+	case tage_l:
+	{
+		BP_TAGE_L *predictor = branch_predictor->predictor;
+
+		BP_TAGE_B *bp_tage_b = predictor->bp_tage_b;
+		BP_LOOP *bp_loop = predictor->bp_loop;
+
+		result.predict_taken[BIMODAL] = Bimodal_Predict(bp_tage_b->alt_bp, addr);
+		
+		Tage_Meta *tage_meta = Tage_Predict(bp_tage_b->tage, addr);
+
+		result.predict_taken[BOOM_TAGE] = tage_meta->provided ? tage_meta->altpred : result.predict_taken[BIMODAL];
+		tage_meta->alt_differs = tage_meta->provided ? 1 : tage_meta->altpred != result.predict_taken[BIMODAL];
+		result.meta_info[BOOM_TAGE] = (Tage_Meta *)tage_meta;
+
+
+		Loop_Meta *loop_meta = Loop_Predict(bp_loop, addr);
+
+		result.predict_taken[TAGE_L] = loop_meta->invert ? !result.predict_taken[BOOM_TAGE] : result.predict_taken[BOOM_TAGE];
+		result.meta_info[TAGE_L] = (Loop_Meta *)loop_meta;
+
 		return result;
 	}
 	default:
@@ -218,7 +272,14 @@ void Tage_Update(BP_TAGE* predictor, uint64_t addr, Result result)
 {
 	uint64_t ghist = predictor->global_history_register->history;
 	uint64_t unhashed_idx = Get_Index(addr, 62);  // 把pc[64:2]给传进去了
-	return TAGE_Update(predictor->tage_without_base, unhashed_idx, ghist, result);
+	TAGE_Update(predictor->tage_without_base, unhashed_idx, ghist, result);
+	return GHR_Update(predictor->global_history_register, result);
+}
+
+void Loop_Update(BP_LOOP* predictor, uint64_t addr, Result result)
+{
+	uint64_t unhashed_idx = Get_Index(addr, 62);  // 把pc[64:2]给传进去了
+	return LOOP_Update(predictor, unhashed_idx, result);
 }
 
 void Predictor_Update(uint64_t addr, Result result)
@@ -261,8 +322,16 @@ void Predictor_Update(uint64_t addr, Result result)
 		BP_TAGE_B *predictor = branch_predictor->predictor;
 		Bimodal_Update(predictor->alt_bp, addr, result);
 		Tage_Update(predictor->tage, addr, result);
-		
-		GHR_Update(predictor->tage->global_history_register, result);
+
+		return;
+	}
+	case tage_l:
+	{
+		BP_TAGE_L *predictor = branch_predictor->predictor;
+		Bimodal_Update(predictor->bp_tage_b->alt_bp, addr, result);
+		Tage_Update(predictor->bp_tage_b->tage, addr, result);
+		Loop_Update(predictor->bp_loop, addr, result);	// loop_update内部只有在mispredict的时候才会加项
+
 		return;
 	}
 	}
@@ -315,6 +384,10 @@ void BP_fprintf(FILE *fp)  // 打印最后的final table
 		return;
 	}
 	case boom_tage:
+	{
+		return;
+	}
+	case tage_l:
 	{
 		return;
 	}

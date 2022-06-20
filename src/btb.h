@@ -6,17 +6,18 @@
 #ifndef BTB_H_
 #define BTB_H_
 
-typedef struct Block
+typedef struct BTB_Block
 {
 	/* uint32_t* Target_Addr; */
+	uint64_t target;
 	uint32_t tag;
 	uint8_t valid_bit;
-}Block;
+}BTB_Block;
 
 typedef struct Set
 {
-	Block *block;
-	uint64_t *rank;
+	BTB_Block *block;
+	uint64_t *rank;  // 这个是替换时的等级，选等级低的替换
 }Set;
 
 typedef struct BTB_Attributes
@@ -75,7 +76,7 @@ uint32_t Rank_Top(uint32_t index);
 /*
  *	Allocate (Place or Replace) block "blk" on branch_target_buffer, set "index", way "way_num"
  */
-void BTB_Replacement(uint32_t index, uint32_t way_num, uint32_t tag);
+void BTB_Replacement(uint32_t index, uint32_t way_num, uint32_t tag, uint64_t target);
 
 /*
  *	Search the branch_target_buffer for PC "addr" and make prediction

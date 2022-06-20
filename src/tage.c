@@ -271,20 +271,20 @@ void TAGE_Clear(TAGE* tage)
 static uint32_t TAGE_U_Update(bool alt_differ, bool mispredict, uint32_t old_u)
 {
     return !alt_differ ? old_u : mispredict ? (old_u == 0 ? 0 : old_u - 1) :
-                                     old_u == 3 ? 3 : old_u + 1;
+                                     old_u == tageMaxU ? tageMaxU : old_u + 1;
 }
 
-static uint32_t TAGE_Ctr_Update(bool is_taken, uint32_t old_ctr)
-{
-    return !is_taken ? (old_ctr == 0 ? 0 : old_ctr - 1) : (old_ctr == 7 ? 7 : old_ctr + 1);
-}
+// static uint32_t TAGE_Ctr_Update(bool is_taken, uint32_t old_ctr)
+// {
+//     return !is_taken ? (old_ctr == 0 ? 0 : old_ctr - 1) : (old_ctr == tageMaxCtr ? tageMaxCtr : old_ctr + 1);
+// }
 
 
 
 void TAGE_Update(TAGE* tage, uint64_t unhashed_idx, uint64_t ghist, Result result)
 {
     bool mispredict = result.actual_taken != result.predict_taken[BOOM_TAGE];
-    Tage_Meta* tage_meta = result.meta_info;
+    Tage_Meta* tage_meta = result.meta_info[BOOM_TAGE];
 
     if(tage_meta->provided) // 这里是更新provider
     {
@@ -293,7 +293,7 @@ void TAGE_Update(TAGE* tage, uint64_t unhashed_idx, uint64_t ghist, Result resul
         uint32_t provider_u = tage_meta->provider_u;
         uint32_t provider_new_u = TAGE_U_Update(tage_meta->alt_differs, mispredict, provider_u);
         uint32_t provider_ctr = tage_meta->provider_ctr;
-        uint32_t provider_new_ctr = TAGE_Ctr_Update(result.actual_taken == taken, provider_ctr);
+        uint32_t provider_new_ctr = Saturate_Inc_UCtr(provider_ctr, tageMaxCtr, result.actual_taken == TAKEN);
 
         tage->tage_tables[provider].hi_us[index] = (provider_new_u & ~0x02) >> 1;
         tage->tage_tables[provider].lo_us[index] = provider_new_u & ~0x01;
@@ -304,7 +304,7 @@ void TAGE_Update(TAGE* tage, uint64_t unhashed_idx, uint64_t ghist, Result resul
     {
         uint32_t alloc_idx = tage_meta->alloc_entry;
         uint32_t alloc_new_u = 0;
-        uint32_t alloc_new_ctr = result.actual_taken == taken ? 4 : 3;
+        uint32_t alloc_new_ctr = result.actual_taken == TAKEN ? (tageMaxCtr+1)/2 : (tageMaxCtr+1)/2-1;
         uint32_t index = TAGE_Compute_Index(unhashed_idx, ghist, alloc_idx);
         uint32_t tag = TAGE_Compute_Tag(unhashed_idx, ghist, alloc_idx);
 

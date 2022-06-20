@@ -8,18 +8,43 @@
 
 #include <stdbool.h>
 
+#define loopMaxCtr 1024
+#define loopMaxAge 7
+#define loopMaxConf 7
 
-typedef struct LOOP_Attributes
+// 16-set
+
+typedef struct Loop_Entry
 {
-	uint64_t counter_num;   // table entry num  = pow(index_width)
-	uint32_t index_width;   
-}LOOP_Attributes;
+	uint32_t age;    // 3-bit
+	uint32_t conf; 	 // 3-bit
+    uint32_t p_cnt;  // 10-bit counter, past iter cnt
+	uint32_t s_cnt;  // 10-bit counter
+    uint32_t tag;    // 10-bit tag
+}Loop_Entry;
+
+typedef struct Loop_Meta
+{
+    uint32_t s_cnt;
+	// bool hit;  do not need
+	bool invert; // 表示是否反转结果
+}Loop_Meta;
+
+
+typedef struct Loop_Attributes
+{
+	uint64_t num_row;   // 16项
+	uint32_t index_width;   // 4-bit的索引
+	uint32_t tag_width;
+}Loop_Attributes;
 
 typedef struct LOOP
 {
-	__uint32_t* counter;
-	LOOP_Attributes attributes;
+	Loop_Entry* loop_entrys;
+	Loop_Attributes attributes;
 }LOOP;
+
+
 
 /*
  *	Initial the branch prediction table
@@ -29,7 +54,7 @@ typedef struct LOOP
  *						hybrid:		(bimodal) i_B	(gshare) i_G
  *						yehpatt:	p
  */
-void LOOP_Initial(LOOP* loop_bp, uint32_t index_width);
+void LOOP_Initial(LOOP* loop, uint32_t index_width, uint32_t tag_width);  // 默认tag_width=10
 
 /*
  *	Search the BranchPredictionTable for entry of "index" and make prediction
@@ -38,7 +63,7 @@ void LOOP_Initial(LOOP* loop_bp, uint32_t index_width);
  *	return	:
  *		the prediction on whether branch is taken -- taken or not_taken
  */
-Taken_Result LOOP_Predict(LOOP* loop_bp, uint64_t index);
+Loop_Meta* LOOP_Predict(LOOP* loop_bp, uint64_t unhashed_idx);
 
 /*
  *	Update the BranchPredictionTable
@@ -51,6 +76,6 @@ void LOOP_Update(LOOP* loop_bp, uint64_t index, Result result);
 /*
  * Print the content of BranchPredictionTable to file *fp
  */
-void LOOP_fprintf(LOOP* loop_bp, FILE *fp);
+void LOOP_fprintf(LOOP* loop, FILE *fp);
 
 #endif

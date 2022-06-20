@@ -35,16 +35,16 @@ Taken_Result BPT_Predict(BPT* BranchPredictionTable, uint64_t index)
 		
 	case strongly_taken:
 	case weakly_taken:
-		return taken;
+		return true;
 	default:
 			
-		return not_taken;
+		return false;
 	}
 }
 
 void BPT_Update(BPT* BranchPredictionTable, uint64_t index, Result result)
 {
-	if (result.actual_taken == taken)
+	if (result.actual_taken == TAKEN)
 	{
 		switch (BranchPredictionTable->counter[index])
 		{

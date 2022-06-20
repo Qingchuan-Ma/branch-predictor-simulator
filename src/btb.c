@@ -17,7 +17,7 @@ void BTB_Init(uint32_t assoc, uint32_t index_width)
 	branch_target_buffer->attributes.set_num = (uint32_t)pow_2(index_width);
 	
 	branch_target_buffer->attributes.index_width = index_width;
-	branch_target_buffer->attributes.tag_width = 30 - index_width;
+	branch_target_buffer->attributes.tag_width = 62 - index_width;
 
 	/* then, allocate space for sets (including blocks and tag array) */
 	branch_target_buffer->set = (Set *)malloc(sizeof(Set) * branch_target_buffer->attributes.set_num);
@@ -26,10 +26,10 @@ void BTB_Init(uint32_t assoc, uint32_t index_width)
 	uint32_t i;
 	for (i = 0; i < branch_target_buffer->attributes.set_num; i++)
 	{
-		branch_target_buffer->set[i].block = (Block *)malloc(sizeof(Block) * branch_target_buffer->attributes.assoc);
+		branch_target_buffer->set[i].block = (BTB_Block *)malloc(sizeof(BTB_Block) * branch_target_buffer->attributes.assoc);
 		if (branch_target_buffer->set[i].block == NULL)
 			_error_exit("malloc")
-		memset(branch_target_buffer->set[i].block, 0, sizeof(Block) * branch_target_buffer->attributes.assoc);
+		memset(branch_target_buffer->set[i].block, 0, sizeof(BTB_Block) * branch_target_buffer->attributes.assoc);
 		branch_target_buffer->set[i].rank = (uint64_t *)malloc(sizeof(uint64_t) * branch_target_buffer->attributes.assoc);
 		if (branch_target_buffer->set[i].rank == NULL)
 			_error_exit("malloc")
@@ -40,7 +40,7 @@ void BTB_Init(uint32_t assoc, uint32_t index_width)
 void Interpret_Address(uint64_t addr, uint32_t *tag, uint32_t *index)
 {
 	uint32_t tag_width = branch_target_buffer->attributes.tag_width;
-	*tag = addr >> (32 - tag_width);
+	*tag = addr >> (64 - tag_width);
 	*index = (addr << tag_width) >> (tag_width + 2);
 }
 
@@ -63,6 +63,7 @@ uint32_t BTB_Search(uint64_t tag, uint32_t index)
 		}
 	return k;
 }
+
 
 void Rank_Maintain(uint32_t index, uint32_t way_num, uint64_t rank_value)
 {
@@ -93,40 +94,58 @@ uint32_t Rank_Top(uint32_t index)
 	return k;
 }
 
-void BTB_Replacement(uint32_t index, uint32_t way_num, uint32_t tag)
+void BTB_Replacement(uint32_t index, uint32_t way_num, uint32_t tag, uint64_t target)
 {
 	branch_target_buffer->set[index].block[way_num].valid_bit = VALID;
 	branch_target_buffer->set[index].block[way_num].tag = tag;
+	branch_target_buffer->set[index].block[way_num].target = target;
 #ifdef DBG
 	fprintf(debug_fp, "Replacement %lx: branch_target_buffer Set %u, Way %u\n", Rebuild_Address(tag, index), index, way_num);
 #endif
 }
 
+
+
 Branch_Result BTB_Predict(uint64_t addr)
 {
 	uint32_t tag, index;
 	Interpret_Address(addr, &tag, &index);
+	Branch_Result result;
+	result.target = 0;
 	uint32_t way_num = BTB_Search(tag, index);
 	if (way_num == branch_target_buffer->attributes.assoc)
-		return not_branch;
-	return branch;
+	{
+		result.is_branch = NOT_BRANCH;
+		return result;
+	} else
+	{
+		result.is_branch = BRANCH;
+		result.target = branch_target_buffer->set[index].block[way_num].target;
+	}
+
+	return result;
 }
 
 void BTB_Update(uint64_t addr, Result result, uint64_t rank_value)
 {
 	uint32_t tag, index, way_num;
 	/* if predition is correct */
-	if (result.actual_branch == result.predict_branch)
+	if (result.actual_branch.is_branch == result.predict_branch.is_branch && result.actual_branch.target == result.predict_branch.target)
 	{
-		if (result.actual_branch == not_branch)
+		if (result.actual_branch.is_branch == NOT_BRANCH)
 			/* if it is not a branch and predition is correct, we do nothing */
 			return;
 		/* if it is a branch and predition is correct, we update the LRU bit */
 		Interpret_Address(addr, &tag, &index);
 		way_num = BTB_Search(tag, index);
+	} else if (result.actual_branch.is_branch == result.predict_branch.is_branch && result.actual_branch.target != result.predict_branch.target)
+	{
+		Interpret_Address(addr, &tag, &index);
+		way_num = BTB_Search(tag, index);
+		BTB_Replacement(index, way_num, tag, result.actual_branch.target);
 	}
 	/* if predition is not correct */
-	else
+	else // 预测错误
 	{
 		/*
 		 * Branch Target Branch is empty at first and branch instr is allocated in BTB
@@ -136,9 +155,9 @@ void BTB_Update(uint64_t addr, Result result, uint64_t rank_value)
 		 */
 		Interpret_Address(addr, &tag, &index);
 		way_num = Rank_Top(index);
-		BTB_Replacement(index, way_num, tag);
+		BTB_Replacement(index, way_num, tag, result.actual_branch.target);
 	}
-	Rank_Maintain(index, way_num, rank_value);
+	Rank_Maintain(index, way_num, rank_value);  // rank_value是trace_cnt，就是trace的num，选最远的进行替换
 }
 
 void BTB_fprintf(FILE *fp)

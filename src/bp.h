@@ -10,8 +10,10 @@
 #include "ghr.h"
 #include "bct.h"
 #include "tage.h"
+#include "loop.h"
 
 typedef BPT BP_Bimodal;
+typedef LOOP BP_LOOP;
 
 typedef struct BP_Gshare
 {
@@ -43,6 +45,12 @@ typedef struct BP_TAGE_B  // tage with base
 	BP_Bimodal* alt_bp;
 	BP_TAGE* tage;
 }BP_TAGE_B;
+
+typedef struct BP_TAGE_L
+{
+	BP_TAGE_B* bp_tage_b;
+	BP_LOOP* bp_loop;
+}BP_TAGE_L;
 
 typedef struct BP
 {

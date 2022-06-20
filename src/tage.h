@@ -11,6 +11,8 @@
 #define tageHistLen 64
 #define tageTableNum 6
 #define tageUPeriod 1024
+#define tageMaxCtr 7
+#define tageMaxU 3
 
 // 目前假定tage的参数固定
 
@@ -47,9 +49,9 @@ typedef struct TageTable
 
 typedef struct Tage_Meta
 {
-    int32_t provider;
+    uint32_t provider;
     bool provided;
-    uint32_t altpred;
+    bool altpred;
     uint32_t provider_u; // 用于更新u
     uint32_t provider_ctr; // 用于更新ctr
     bool allocatable;
