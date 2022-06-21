@@ -1,7 +1,7 @@
 
 # Branch Predictor simulator Makefile
 PROG = sim_bp
-SRCS = main.c utils.c btb.c bct.c bht.c bpt.c ghr.c bp.c tage.c loop.c
+SRCS = main.c utils.c btb.c bct.c bht.c bpt.c ghr.c bp.c tage.c loop.c sc.c
 OBJS = $(SRCS:.c=.o)
 CLEANFILES = $(PROG) $(OBJS)
 

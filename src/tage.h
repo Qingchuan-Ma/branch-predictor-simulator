@@ -51,7 +51,8 @@ typedef struct Tage_Meta
 {
     uint32_t provider;
     bool provided;
-    bool altpred;
+    bool alt_pred;
+    bool provider_pred;
     uint32_t provider_u; // 用于更新u
     uint32_t provider_ctr; // 用于更新ctr
     bool allocatable;

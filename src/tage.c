@@ -65,7 +65,7 @@ uint32_t tageTableInfo[tageTableNum][3] = {
 // {
 //     int32_t provider;
 //     uint32_t provided;
-//     uint32_t altpred;
+//     uint32_t provider_pred;
 //     uint32_t provider_u; // 用于更新u
 //     uint32_t provider_ctr; // 用于更新ctr
 // }Tage_Meta;
@@ -100,7 +100,7 @@ void TAGE_Initial(TAGE* tage) //, uint32_t index_width)
             tage->tage_tables[i].entry[j].tag = 0;
         }   
     }
-    
+    return;
 }
 
 
@@ -140,7 +140,7 @@ Tage_Meta* TAGE_Predict(TAGE* tage, uint64_t unhashed_idx, uint64_t ghist)
 {
     int32_t provider = -1;
     bool provided = false;
-    uint32_t altpred = 0;
+    uint32_t provider_pred = 0;
     uint32_t provider_u = 0;
     uint32_t provider_ctr = 0;
     Tage_Meta* tage_meta = (Tage_Meta *)malloc(sizeof(Tage_Meta));
@@ -164,7 +164,7 @@ Tage_Meta* TAGE_Predict(TAGE* tage, uint64_t unhashed_idx, uint64_t ghist)
         {
             provided = provided | true;
             provider = i;
-            altpred = tage->tage_tables[i].entry[index].ctr >= 4;
+            provider_pred = tage->tage_tables[i].entry[index].ctr >= 4;
             provider_u = 2 * tage->tage_tables[i].hi_us[index] + tage->tage_tables[i].lo_us[index];
             provider_ctr = tage->tage_tables[i].entry[index].ctr;
         }
@@ -209,7 +209,7 @@ Tage_Meta* TAGE_Predict(TAGE* tage, uint64_t unhashed_idx, uint64_t ghist)
     uint32_t alloc_entry = allocatable_slots[lfsr_entry] ? lfsr_entry : first_entry;
 
 
-    tage_meta->altpred = altpred;
+    tage_meta->provider_pred = provider_pred;
     tage_meta->provided = provided;
     tage_meta->provider = provider;
     tage_meta->provider_u = provider_u;
@@ -224,7 +224,7 @@ Tage_Meta* TAGE_Predict(TAGE* tage, uint64_t unhashed_idx, uint64_t ghist)
 		// {
 		// 	int32_t provider;
 		// 	uint32_t provided;
-		// 	uint32_t altpred;
+		// 	uint32_t provider_pred;
 		// 	uint32_t provider_u; // 用于更新u
 		// 	uint32_t provider_ctr; // 用于更新ctr
 		// 	bool allocatable;
@@ -232,10 +232,10 @@ Tage_Meta* TAGE_Predict(TAGE* tage, uint64_t unhashed_idx, uint64_t ghist)
 		// 	uint32_t alloc_entry;
 		// }Tage_Meta;
 
-		printf("tage_meta: provided: %d, provider: %d, altpred: %d, provider_u: %d, provider_ctr: %d, allocatable: %d, alloc_entry: %d, first_entry: %d\n", 
+		printf("tage_meta: provided: %d, provider: %d, provider_pred: %d, provider_u: %d, provider_ctr: %d, allocatable: %d, alloc_entry: %d, first_entry: %d\n", 
 				tage_meta->provided,
 				tage_meta->provider,
-				tage_meta->altpred,
+				tage_meta->provider_pred,
 				tage_meta->provider_u,
 				tage_meta->provider_ctr,
 				tage_meta->allocatable,

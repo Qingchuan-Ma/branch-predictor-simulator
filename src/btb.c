@@ -130,6 +130,11 @@ void BTB_Update(uint64_t addr, Result result, uint64_t rank_value)
 {
 	uint32_t tag, index, way_num;
 	/* if predition is correct */
+
+	// 如果全部都预测正确，包括是branch且target一致，则提升rank
+	// 如果是taken，则可能需要更新BTB
+	// 如果不taken，则不需要更新BTB(是否需要提升rank?)
+
 	if (result.actual_branch.is_branch == result.predict_branch.is_branch && result.actual_branch.target == result.predict_branch.target)
 	{
 		if (result.actual_branch.is_branch == NOT_BRANCH)
@@ -138,14 +143,16 @@ void BTB_Update(uint64_t addr, Result result, uint64_t rank_value)
 		/* if it is a branch and predition is correct, we update the LRU bit */
 		Interpret_Address(addr, &tag, &index);
 		way_num = BTB_Search(tag, index);
-	} else if (result.actual_branch.is_branch == result.predict_branch.is_branch && result.actual_branch.target != result.predict_branch.target)
-	{
-		Interpret_Address(addr, &tag, &index);
-		way_num = BTB_Search(tag, index);
-		BTB_Replacement(index, way_num, tag, result.actual_branch.target);
-	}
+		Rank_Maintain(index, way_num, rank_value);  // rank_value是trace_cnt，就是trace的num，选最远的进行替换
+		return;
+	} // else
+	// {
+	// 	Interpret_Address(addr, &tag, &index);
+	// 	way_num = BTB_Search(tag, index);
+	// 	BTB_Replacement(index, way_num, tag, result.actual_branch.target);
+	// }
 	/* if predition is not correct */
-	else // 预测错误
+	else if (result.actual_taken == TAKEN) // 只有是taken的状态才需要更新BTB
 	{
 		/*
 		 * Branch Target Branch is empty at first and branch instr is allocated in BTB
@@ -156,8 +163,9 @@ void BTB_Update(uint64_t addr, Result result, uint64_t rank_value)
 		Interpret_Address(addr, &tag, &index);
 		way_num = Rank_Top(index);
 		BTB_Replacement(index, way_num, tag, result.actual_branch.target);
+		Rank_Maintain(index, way_num, rank_value);  // rank_value是trace_cnt，就是trace的num，选最远的进行替换
+		return;
 	}
-	Rank_Maintain(index, way_num, rank_value);  // rank_value是trace_cnt，就是trace的num，选最远的进行替换
 }
 
 void BTB_fprintf(FILE *fp)

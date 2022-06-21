@@ -212,8 +212,9 @@ Result Predictor_Predict(uint64_t addr)
 		
 		Tage_Meta *tage_meta = Tage_Predict(predictor->tage, addr);
 
-		result.predict_taken[BOOM_TAGE] = tage_meta->provided ? tage_meta->altpred : result.predict_taken[BIMODAL];
-		tage_meta->alt_differs = tage_meta->provided ? 1 : tage_meta->altpred != result.predict_taken[BIMODAL];
+		result.predict_taken[BOOM_TAGE] = tage_meta->provided ? tage_meta->provider_pred : result.predict_taken[BIMODAL];
+		tage_meta->alt_pred = result.predict_taken[BIMODAL];
+		tage_meta->alt_differs = tage_meta->provided ? tage_meta->provider_pred != tage_meta->alt_pred : 1;
 		#ifdef MyDBG1
 		if(tage_meta->alt_differs==1)
 			printf("addr: %lx, alt_differs: 0\n", addr, tage_meta->alt_differs);
@@ -233,8 +234,9 @@ Result Predictor_Predict(uint64_t addr)
 		
 		Tage_Meta *tage_meta = Tage_Predict(bp_tage_b->tage, addr);
 
-		result.predict_taken[BOOM_TAGE] = tage_meta->provided ? tage_meta->altpred : result.predict_taken[BIMODAL];
-		tage_meta->alt_differs = tage_meta->provided ? 1 : tage_meta->altpred != result.predict_taken[BIMODAL];
+		result.predict_taken[BOOM_TAGE] = tage_meta->provided ? tage_meta->provider_pred : result.predict_taken[BIMODAL];
+		tage_meta->alt_pred = result.predict_taken[BIMODAL];
+		tage_meta->alt_differs = tage_meta->provided ? tage_meta->provider_pred != tage_meta->alt_pred : 1;
 		result.meta_info[BOOM_TAGE] = (Tage_Meta *)tage_meta;
 
 

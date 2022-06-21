@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "*.cpp": "c",
+        "utils.h": "c",
+        "type_traits": "c",
+        "bp.h": "c",
+        "btb.h": "c",
+        "functional": "c"
+    }
+}
