@@ -12,6 +12,8 @@
 #include "utils.h"
 #include "sc.h"
 
+// 按照xiangshan的结构写的sc
+
 uint32_t scTableInfo[scTableNum][3] = {
     // nSets, ctrbit,  hislen
     {  512,       6,     0},
@@ -79,9 +81,11 @@ int32_t Get_Pvdr_Centered(uint32_t ctr)  // 该函数默认3-bit的tage ctr输�
     return (2*((int32_t)ctr-4)+1)*8;
 }
 
-bool Sum_Above_Threshold(SC* sc, int32_t totalSum) // TODO
+bool Sum_Above_Threshold(int32_t sc_table_sum, int32_t tage_ctr, uint32_t threshold) // TODO
 {
-    return true;
+    int32_t total_sum = sc_table_sum + tage_ctr;
+    int32_t signed_thres = (int32_t)(threshold);
+    return ((sc_table_sum > signed_thres - tage_ctr) && (total_sum >= 0)) || ((sc_table_sum < -signed_thres - tage_ctr) && (total_sum < 0));
 }
 
 SC_Meta* SC_Predict(SC* sc, uint64_t unhashed_idx, uint64_t ghist, Tage_Meta* tage_meta)
@@ -91,28 +95,96 @@ SC_Meta* SC_Predict(SC* sc, uint64_t unhashed_idx, uint64_t ghist, Tage_Meta* ta
 
     SC_Meta* sc_meta = (SC_Meta*) malloc(sizeof(SC_Meta));
 
-    int32_t scTableSum = 0;
+    int32_t sc_table_sum = 0;
 
     for (size_t i = 0; i < scTableNum; i++)
     {
         uint32_t index = SC_Compute_Index(unhashed_idx, ghist, i);
-        int32_t ctr = taken ? Get_Centered(sc->sc_tables->entry[index].taken_ctr) : Get_Centered(sc->sc_tables->entry[index].nontaken_ctr);
-        scTableSum += ctr;
+        int32_t ctr = taken ? Get_Centered(sc->sc_tables[i].entry[index].taken_ctr) : Get_Centered(sc->sc_tables[i].entry[index].nontaken_ctr);
+        sc_table_sum += ctr;
         sc_meta->ctrs[i] = ctr;
     }
 
-    int32_t tagePrvdCtrCentered = Get_Pvdr_Centered(tage_meta->provider_ctr);
+    int32_t tage_prvd_ctr_centered = Get_Pvdr_Centered(tage_meta->provider_ctr);
 
-    int32_t totalSum = scTableSum + tagePrvdCtrCentered;
+    int32_t total_sum = sc_table_sum + tage_prvd_ctr_centered;
 
     sc_meta->sc_used = tage_provided; // 只有使用过sc才会进行sc的更新
     sc_meta->tage_taken = taken;
 
-    if(tage_provided && Sum_Above_Threshold(sc, totalSum))
-        sc_meta->sc_pred = totalSum >= 0;
+    if(tage_provided && Sum_Above_Threshold(sc_table_sum, tage_prvd_ctr_centered, sc->scThreshold.thres))
+        sc_meta->sc_pred = total_sum >= 0;
     else
         sc_meta->sc_pred = taken;   //sc_pred永远是正确的，不管用没用sc，最后预测结果直接从sc_pred获得
     
 
     return sc_meta;
+}
+
+
+void Update_Threshold(SC* sc, bool cause)
+{
+    uint32_t old_ctr = sc->scThreshold.ctr;
+    uint32_t new_ctr = Saturate_Inc_UCtr(old_ctr, scThresCtrBits, cause);
+    bool sat_pos = new_ctr == scMaxThresCtr;
+    bool sat_neg = new_ctr == 0;
+    uint32_t old_thres = sc->scThreshold.thres;
+
+    // set new ctr and thres
+    sc->scThreshold.thres = sat_pos && old_thres <= scMaxThres ? old_thres + 2: 
+                            sat_neg && old_thres >= scMinThres ? old_thres - 2:
+                            old_thres; 
+    sc->scThreshold.ctr = sat_pos || sat_neg ? scInitThresCtr : new_ctr;
+    return;
+}
+
+
+void SC_Update(SC* sc, uint64_t unhashed_idx, uint64_t ghist, Result result)
+{
+    //bool mispredict = result.actual_taken != result.predict_taken[TAGE_SC];
+    Tage_Meta* tage_meta = result.meta_info[TAGE_B];
+    SC_Meta* sc_meta = result.meta_info[TAGE_SC];
+
+    bool sc_pred = sc_meta->sc_pred;
+    bool tage_taken = sc_meta->tage_taken;
+    bool taken = result.actual_taken;
+
+    int32_t* sc_old_ctrs = sc_meta->ctrs;
+    uint32_t tage_provider_ctr = tage_meta->provider_ctr;
+    
+    int32_t update_sum = 0;
+    
+    for (size_t i = 0; i < scTableNum; i++)
+    {
+        update_sum += Get_Centered(sc_old_ctrs[i]);
+    }
+
+    update_sum += Get_Pvdr_Centered(tage_provider_ctr);
+
+    int32_t update_sum_abs = abs(update_sum);
+    uint32_t update_thres = (sc->scThreshold.thres << 3) + 21; // 香山是这么设计update_thres的，普遍的可能需要更改
+    bool update_sum_above_thres = Sum_Above_Threshold(update_sum, tage_provider_ctr, update_thres);
+
+    // 更新sctables中的ctr
+    for (size_t i = 0; i < scTableNum; i++)
+    {
+        uint32_t index = SC_Compute_Index(unhashed_idx, ghist, i);
+        if(sc_pred != taken && !update_sum_above_thres) // 预测失败且没有超过update阈值，则需要更新ctr
+        {
+            if(tage_taken)
+                sc->sc_tables[i].entry[index].taken_ctr = Saturate_Inc_SCtr(sc_old_ctrs[i], sc->sc_tables->attributes.ctr_bits, taken);
+            else
+                sc->sc_tables[i].entry[index].nontaken_ctr = Saturate_Inc_SCtr(sc_old_ctrs[i], sc->sc_tables->attributes.ctr_bits, taken);
+        }
+    }
+    
+    if (sc_pred != taken && update_sum_abs >= sc->scThreshold.thres - 4 && update_sum_abs <= sc->scThreshold.thres - 2) // 更新threshold
+        Update_Threshold(sc, taken!= sc_pred);
+    
+
+    
+
+    free(tage_meta);
+    free(sc_meta);
+    return;
 }

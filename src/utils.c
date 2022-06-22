@@ -37,7 +37,7 @@ void parse_arguments(int argc, char * argv[], Predictor *type, uint32_t* width)
 	}
 	else if (strcmp(argv[1], "tage") == 0)
 	{
-		*type = boom_tage;
+		*type = tage_b;
 		if (argc != 6) // the same as bimodal, 因为tage的参数都目前都被定死了
 			_output_error_exit("wrong number of input parameters")
 	}
@@ -45,6 +45,18 @@ void parse_arguments(int argc, char * argv[], Predictor *type, uint32_t* width)
 	{
 		*type = tage_l;
 		if (argc != 7) // the same as bimodal+1, 因为tage的参数都目前都被定死了+loop的index_width
+			_output_error_exit("wrong number of input parameters")
+	}
+	else if (strcmp(argv[1], "tage-sc") == 0)
+	{
+		*type = tage_l;
+		if (argc != 6) // the same as bimodal, 因为tage和sc的参数都目前都被定死了
+			_output_error_exit("wrong number of input parameters")
+	}
+	else if (strcmp(argv[1], "tage-sc-l") == 0)
+	{
+		*type = tage_l;
+		if (argc != 7) // the same as bimodal+1, 因为tage和sc的参数都目前都被定死了+loop的index_width
 			_output_error_exit("wrong number of input parameters")
 	}
 	else
@@ -89,7 +101,7 @@ void parse_arguments(int argc, char * argv[], Predictor *type, uint32_t* width)
 		trace_file = argv[6];
 		break;
 	}
-	case boom_tage: // TODO: add new parameter
+	case tage_b: // TODO: add new parameter
 	{
 		width[BIMODAL] = atoi(argv[2]);
 		width[BTBuffer] = atoi(argv[3]);
@@ -104,6 +116,23 @@ void parse_arguments(int argc, char * argv[], Predictor *type, uint32_t* width)
 		width[ASSOC] = atoi(argv[4]);
 		width[TAGE_L] = atoi(argv[5]);   // for loop index width
 		trace_file = argv[6];
+		break;
+	}
+	case tage_sc:
+	{
+		width[BIMODAL] = atoi(argv[2]);
+		width[BTBuffer] = atoi(argv[3]);
+		width[ASSOC] = atoi(argv[4]);
+		trace_file = argv[5];
+		break;
+	}
+	case tage_sc_l:
+	{
+		width[BIMODAL] = atoi(argv[2]);
+		width[BTBuffer] = atoi(argv[3]);
+		width[ASSOC] = atoi(argv[4]);
+		width[TAGE_L] = atoi(argv[5]);   // for loop index width
+		trace_file = argv[5];
 		break;
 	}
 	}
@@ -183,13 +212,29 @@ void Result_fprintf(FILE *fp, int argc, char* argv[])
 }
 
 
-uint32_t Saturate_Inc_UCtr(uint32_t ctr, uint32_t saturate, bool taken)
+uint32_t Saturate_Inc_UCtr(uint32_t ctr, uint32_t ctr_bits, bool taken)
 {
-	if(taken){
-		if(ctr == saturate) return saturate;
-		else return ctr + 1;
-	} else {
-		if(ctr == 0) return 0;
-		else return ctr - 1;
-	}
+	bool old_sat_taken = ctr == (1 << ctr_bits) - 1;
+	bool old_sat_non_taken = ctr == 0;
+	
+	if(taken && old_sat_taken)
+		return (1 << ctr_bits)-1;
+	else if (!taken && old_sat_non_taken)
+		return 0;
+	else
+		return taken ? ctr + 1: ctr -1;
+}
+
+uint32_t Saturate_Inc_SCtr(int32_t ctr, uint32_t ctr_bits, bool taken)
+{
+	bool old_sat_taken = ctr == (1 << (ctr_bits-1)) - 1;
+	bool old_sat_non_taken = ctr == -(1 << (ctr_bits-1));
+
+
+	if(taken && old_sat_taken)
+		return (1 << (ctr_bits-1)) - 1;
+	else if (!taken && old_sat_non_taken)
+		return -(1 << (ctr_bits-1));
+	else
+		return taken ? ctr + 1: ctr -1;
 }

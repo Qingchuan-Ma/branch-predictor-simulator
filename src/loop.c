@@ -67,8 +67,8 @@ Loop_Meta* LOOP_Predict(LOOP* loop, uint64_t unhashed_idx)
 			loop->loop_entrys[index].age = loopMaxAge;
 		} else
 		{
-			loop->loop_entrys[index].s_cnt = Saturate_Inc_UCtr(loop->loop_entrys[index].s_cnt, loopMaxCtr, true);
-			loop->loop_entrys[index].age = Saturate_Inc_UCtr(loop->loop_entrys[index].age, loopMaxAge, true);
+			loop->loop_entrys[index].s_cnt = Saturate_Inc_UCtr(loop->loop_entrys[index].s_cnt, loopCtrBits, true);
+			loop->loop_entrys[index].age = Saturate_Inc_UCtr(loop->loop_entrys[index].age, loopAgeBits, true);
 		}
 		
 	} else
@@ -106,7 +106,7 @@ void LOOP_Update(LOOP* loop, uint64_t unhashed_idx, Result result)  // 更新策
 
 		// Confident, tag match, ctr_match -> increment confidence, reset counter
 		} else if (entry->conf != 0 && tag_match && ctr_match) {
-			entry->conf = Saturate_Inc_UCtr(entry->conf, loopMaxConf, true);
+			entry->conf = Saturate_Inc_UCtr(entry->conf, loopConfBits, true);
 			entry->s_cnt = 0;
 
 		// Confident, tag match, no ctr match -> zero confidence, reset counter, set previous counter
@@ -124,7 +124,7 @@ void LOOP_Update(LOOP* loop, uint64_t unhashed_idx, Result result)  // 更新策
 
 		// Confident, no tag match, age > 0 -> decrement age
 		} else if (entry->conf != 0 && !tag_match && entry->age != 0) {
-			entry->age = Saturate_Inc_UCtr(entry->age, loopMaxAge, false);
+			entry->age = Saturate_Inc_UCtr(entry->age, loopAgeBits, false);
 
 		// Unconfident, tag match, ctr match -> increment confidence
 		} else if (entry->conf == 0 && tag_match && ctr_match) {

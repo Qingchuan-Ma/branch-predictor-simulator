@@ -11,6 +11,7 @@
 #include "bct.h"
 #include "tage.h"
 #include "loop.h"
+#include "sc.h"
 
 typedef BPT BP_Bimodal;
 typedef LOOP BP_LOOP;
@@ -37,6 +38,7 @@ typedef struct BP_Yeh_Patt
 typedef struct BP_TAGE
 {
 	TAGE* tage_without_base;
+	SC* sc; // sc为null的时候表示没有SC
 	GHR* global_history_register;
 }BP_TAGE;
 
@@ -51,6 +53,12 @@ typedef struct BP_TAGE_L
 	BP_TAGE_B* bp_tage_b;
 	BP_LOOP* bp_loop;
 }BP_TAGE_L;
+
+typedef struct BP_TAGE_SC
+{
+	BP_Bimodal* alt_bp;
+	BP_TAGE* tage;
+}BP_TAGE_SC;
 
 typedef struct BP
 {

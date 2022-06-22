@@ -8,9 +8,12 @@
 
 #include <stdbool.h>
 
-#define loopMaxCtr 1024
-#define loopMaxAge 7
-#define loopMaxConf 7
+#define loopCtrBits 10
+#define loopMaxCtr ((1 << loopCtrBits) - 1)
+#define loopAgeBits 3
+#define loopMaxAge ((1 << loopAgeBits) - 1)
+#define loopConfBits 3
+#define loopMaxConf ((1 << loopConfBits) - 1)
 
 // 16-set
 

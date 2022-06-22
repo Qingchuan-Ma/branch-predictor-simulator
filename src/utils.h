@@ -12,20 +12,22 @@
 #define GSHARE 1
 #define HYBRID 2
 #define YEH_PATT 3
-#define BOOM_TAGE 4
+#define TAGE_B 4
 #define TAGE_L 5
-#define BP_MAX 6
+#define TAGE_SC 6
+#define TAGE_SC_L 7
+#define BP_MAX 8
 // 以上是分支预测器种类，还可以继续加；以下是width index
 
 
-#define BTBuffer 6
-#define GHRegister 7
-#define BCTable 8
-#define BHTable 9
-#define ASSOC 10
+#define BTBuffer 8
+#define GHRegister 9
+#define BCTable 10
+#define BHTable 11
+#define ASSOC 12
 
 // 一共有多少个width
-#define WIDTH_MAX 11
+#define WIDTH_MAX 13
 
 
 #define NOT_BRANCH 0
@@ -70,8 +72,10 @@ typedef enum Predictor
 	gshare = GSHARE,
 	hybrid = HYBRID,
 	yeh_patt = YEH_PATT,
-	boom_tage = BOOM_TAGE,
-	tage_l = TAGE_L
+	tage_b = TAGE_B,
+	tage_l = TAGE_L,
+	tage_sc = TAGE_SC,
+	tage_sc_l = TAGE_SC_L
 }Predictor;
 
 typedef struct Result
@@ -120,8 +124,9 @@ void Stat_Init();
  *	saturate increase the unsigned counter
  *  taken: increase, non-taken: decrease
  */
-uint32_t Saturate_Inc_UCtr(uint32_t ctr, uint32_t saturate, bool taken);
+uint32_t Saturate_Inc_UCtr(uint32_t ctr, uint32_t ctr_bits, bool taken);
 
+uint32_t Saturate_Inc_SCtr(int32_t ctr, uint32_t ctr_bits, bool taken);
 
 /*
  *	get index from "addr"

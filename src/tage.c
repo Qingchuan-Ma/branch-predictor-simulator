@@ -283,8 +283,8 @@ static uint32_t TAGE_U_Update(bool alt_differ, bool mispredict, uint32_t old_u)
 
 void TAGE_Update(TAGE* tage, uint64_t unhashed_idx, uint64_t ghist, Result result)
 {
-    bool mispredict = result.actual_taken != result.predict_taken[BOOM_TAGE];
-    Tage_Meta* tage_meta = result.meta_info[BOOM_TAGE];
+    bool mispredict = result.actual_taken != result.predict_taken[TAGE_B];
+    Tage_Meta* tage_meta = result.meta_info[TAGE_B];
 
     if(tage_meta->provided) // 这里是更新provider
     {
@@ -293,7 +293,7 @@ void TAGE_Update(TAGE* tage, uint64_t unhashed_idx, uint64_t ghist, Result resul
         uint32_t provider_u = tage_meta->provider_u;
         uint32_t provider_new_u = TAGE_U_Update(tage_meta->alt_differs, mispredict, provider_u);
         uint32_t provider_ctr = tage_meta->provider_ctr;
-        uint32_t provider_new_ctr = Saturate_Inc_UCtr(provider_ctr, tageMaxCtr, result.actual_taken == TAKEN);
+        uint32_t provider_new_ctr = Saturate_Inc_UCtr(provider_ctr, tageCtrBits, result.actual_taken == TAKEN);
 
         tage->tage_tables[provider].hi_us[index] = (provider_new_u & ~0x02) >> 1;
         tage->tage_tables[provider].lo_us[index] = provider_new_u & ~0x01;

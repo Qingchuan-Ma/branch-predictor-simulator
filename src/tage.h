@@ -11,7 +11,8 @@
 #define tageHistLen 64
 #define tageTableNum 6
 #define tageUPeriod 1024
-#define tageMaxCtr 7
+#define tageCtrBits 3
+#define tageMaxCtr ((1 << tageCtrBits) -1)
 #define tageMaxU 3
 
 // 目前假定tage的参数固定

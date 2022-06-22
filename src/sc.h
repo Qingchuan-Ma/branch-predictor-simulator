@@ -16,8 +16,9 @@
 #define scMinThres 6
 #define scInitThres 6
 
-#define scMaxThresCtr 32 // 6bit
-#define scInitThresCtr 16
+#define scThresCtrBits 6 // 6bit
+#define scMaxThresCtr ((1 << scThresCtrBits) - 1)   // 32bit
+#define scInitThresCtr (1 << (scThresCtrBits - 1))   // 16
 
 // 目前假定tage的参数固定
 
@@ -101,7 +102,8 @@ SC_Meta* SC_Predict(SC* sc, uint64_t unhashed_idx, uint64_t ghist, Tage_Meta* ta
  *		index	:	index of counter
  *		result	:	struct "Result", the prediction and actual result
  */
-void SC_Update(TAGE* tage, uint64_t unhashed_idx, uint64_t ghist, Result result);
+
+void SC_Update(SC* sc, uint64_t unhashed_idx, uint64_t ghist, Result result);
 
 
 
