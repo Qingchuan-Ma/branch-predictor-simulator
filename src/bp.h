@@ -54,11 +54,13 @@ typedef struct BP_TAGE_L
 	BP_LOOP* bp_loop;
 }BP_TAGE_L;
 
-typedef struct BP_TAGE_SC
+typedef BP_TAGE_B BP_TAGE_SC;
+
+typedef struct BP_TAGE_SC_L
 {
-	BP_Bimodal* alt_bp;
-	BP_TAGE* tage;
-}BP_TAGE_SC;
+	BP_TAGE_SC* bp_tage_sc;
+	BP_LOOP* bp_loop;
+}BP_TAGE_SC_L;
 
 typedef struct BP
 {

@@ -49,13 +49,13 @@ void parse_arguments(int argc, char * argv[], Predictor *type, uint32_t* width)
 	}
 	else if (strcmp(argv[1], "tage-sc") == 0)
 	{
-		*type = tage_l;
+		*type = tage_sc;
 		if (argc != 6) // the same as bimodal, 因为tage和sc的参数都目前都被定死了
 			_output_error_exit("wrong number of input parameters")
 	}
 	else if (strcmp(argv[1], "tage-sc-l") == 0)
 	{
-		*type = tage_l;
+		*type = tage_sc_l;
 		if (argc != 7) // the same as bimodal+1, 因为tage和sc的参数都目前都被定死了+loop的index_width
 			_output_error_exit("wrong number of input parameters")
 	}
@@ -132,7 +132,7 @@ void parse_arguments(int argc, char * argv[], Predictor *type, uint32_t* width)
 		width[BTBuffer] = atoi(argv[3]);
 		width[ASSOC] = atoi(argv[4]);
 		width[TAGE_L] = atoi(argv[5]);   // for loop index width
-		trace_file = argv[5];
+		trace_file = argv[6];
 		break;
 	}
 	}

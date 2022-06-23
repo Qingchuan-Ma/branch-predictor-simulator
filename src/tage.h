@@ -93,7 +93,7 @@ void TAGE_Initial(TAGE* tage); //, uint32_t index_width); 所有参数目前都�
  *	return	:
  *		the tage prediction meta info
  */
-Tage_Meta* TAGE_Predict(TAGE* tage, uint64_t unhashed_idx, uint64_t ghist);
+void TAGE_Predict(TAGE* tage, uint64_t unhashed_idx, uint64_t ghist, Tage_Meta* tage_meta);
 
 /*
  *	Update the BranchPredictionTable

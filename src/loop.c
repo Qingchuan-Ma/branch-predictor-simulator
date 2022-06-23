@@ -43,10 +43,10 @@ uint32_t LOOP_Compute_Index(LOOP* loop, uint64_t unhashed_idx)
     return (unhashed_idx) & ((1 << index_width)-1);
 }
 
-Loop_Meta* LOOP_Predict(LOOP* loop, uint64_t unhashed_idx)
+void LOOP_Predict(LOOP* loop, uint64_t unhashed_idx, Loop_Meta* loop_meta)
 {
 	// from the whole index get tag and index
-    Loop_Meta* loop_meta = (Loop_Meta *)malloc(sizeof(Loop_Meta));
+    //Loop_Meta* loop_meta = (Loop_Meta *)malloc(sizeof(Loop_Meta));
 	uint32_t index = LOOP_Compute_Index(loop, unhashed_idx);
 	uint32_t tag = LOOP_Compute_Index(loop, unhashed_idx);
 
@@ -76,7 +76,7 @@ Loop_Meta* LOOP_Predict(LOOP* loop, uint64_t unhashed_idx)
 		// do nothing
 	}
 
-	return loop_meta;
+	return;
 }
 
 // 非cycle级的LOOP预测器不需要repair机制

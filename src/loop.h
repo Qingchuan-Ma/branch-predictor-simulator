@@ -66,7 +66,7 @@ void LOOP_Initial(LOOP* loop, uint32_t index_width, uint32_t tag_width);  // 默
  *	return	:
  *		the prediction on whether branch is taken -- taken or not_taken
  */
-Loop_Meta* LOOP_Predict(LOOP* loop_bp, uint64_t unhashed_idx);
+void LOOP_Predict(LOOP* loop, uint64_t unhashed_idx, Loop_Meta* loop_meta);
 
 /*
  *	Update the BranchPredictionTable

@@ -94,7 +94,7 @@ void SC_Initial(SC* sc); // , uint32_t index_width); // 可以指定SC的row_num
  *	return	:
  *		the tage prediction meta info
  */
-SC_Meta* SC_Predict(SC* sc, uint64_t unhashed_idx, uint64_t ghist, Tage_Meta* tage_meta);
+void SC_Predict(SC* sc, uint64_t unhashed_idx, uint64_t ghist, Tage_Meta* tage_meta, SC_Meta* sc_meta);
 
 /*
  *	Update the BranchPredictionTable

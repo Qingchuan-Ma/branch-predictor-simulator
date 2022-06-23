@@ -97,7 +97,7 @@ void Predictor_Init(Predictor type, uint32_t* width)
 		if (predictor->alt_bp == NULL)
 			_error_exit("malloc")
 		BPT_Initial((BPT *)predictor->alt_bp, width[BIMODAL]);
-		/* initial tage*/
+		/* initial tage */
 		predictor->tage = (BP_TAGE *)malloc(sizeof(BP_TAGE));
 		predictor->tage->tage_without_base = (TAGE *)malloc(sizeof(TAGE));
 		TAGE_Initial(predictor->tage->tage_without_base);
@@ -105,6 +105,9 @@ void Predictor_Init(Predictor type, uint32_t* width)
 		/* initial global history register */
 		predictor->tage->global_history_register = (GHR *)malloc(sizeof(GHR));
 		GHR_Initial(predictor->tage->global_history_register, tageHistLen);  // 先固定history再说
+
+		predictor->tage->sc = NULL; // predict和update时不使用sc
+
 		return;
 	}
 	case tage_l:
@@ -125,55 +128,75 @@ void Predictor_Init(Predictor type, uint32_t* width)
 		if (bp_tage_b->alt_bp == NULL)
 			_error_exit("malloc")
 		BPT_Initial((BPT *)bp_tage_b->alt_bp, width[BIMODAL]);
-		/* initial tage*/
+		/* initial tage */
 		bp_tage_b->tage = (BP_TAGE *)malloc(sizeof(BP_TAGE));
 		bp_tage_b->tage->tage_without_base = (TAGE *)malloc(sizeof(TAGE));
 		TAGE_Initial(bp_tage_b->tage->tage_without_base);
 
 		/* initial global history register */
 		bp_tage_b->tage->global_history_register = (GHR *)malloc(sizeof(GHR));
-		GHR_Initial(bp_tage_b->tage->global_history_register, tageHistLen);  // 先固定history再说
+		GHR_Initial(bp_tage_b->tage->global_history_register, tageHistLen);  // 固定history
+
+		bp_tage_b->tage->sc = NULL; // predict和update时不使用sc
+
+		return;
 	}
-	case tage_sc:  // need to be modified
+	case tage_sc:  
 	{
-		branch_predictor->predictor = (BP_TAGE_B *)malloc(sizeof(BP_TAGE_B));
+		branch_predictor->predictor = (BP_TAGE_SC *)malloc(sizeof(BP_TAGE_SC));
 		if (branch_predictor->predictor == NULL)
 			_error_exit("malloc")
-		BP_TAGE_B *predictor = branch_predictor->predictor;
+		BP_TAGE_SC *predictor = branch_predictor->predictor;
 		/* initial branch prediction table */
 		predictor->alt_bp = (BP_Bimodal *)malloc(sizeof(BP_Bimodal));
 		if (predictor->alt_bp == NULL)
 			_error_exit("malloc")
 		BPT_Initial((BPT *)predictor->alt_bp, width[BIMODAL]);
-		/* initial tage*/
+		/* initial tage */
 		predictor->tage = (BP_TAGE *)malloc(sizeof(BP_TAGE));
 		predictor->tage->tage_without_base = (TAGE *)malloc(sizeof(TAGE));
 		TAGE_Initial(predictor->tage->tage_without_base);
 
 		/* initial global history register */
 		predictor->tage->global_history_register = (GHR *)malloc(sizeof(GHR));
-		GHR_Initial(predictor->tage->global_history_register, tageHistLen);  // 先固定history再说
+		GHR_Initial(predictor->tage->global_history_register, tageHistLen);  // 固定history
+
+		/* initial sc */
+		predictor->tage->sc = (SC*)malloc(sizeof(SC));
+		SC_Initial(predictor->tage->sc); // 没有参数传递
 		return;
 	}
 	case tage_sc_l: // need to be modified
 	{
-		branch_predictor->predictor = (BP_TAGE_B *)malloc(sizeof(BP_TAGE_B));
-		if (branch_predictor->predictor == NULL)
-			_error_exit("malloc")
-		BP_TAGE_B *predictor = branch_predictor->predictor;
+		
+		branch_predictor->predictor = (BP_TAGE_SC_L *)malloc(sizeof(BP_TAGE_SC_L));
+		BP_TAGE_SC_L *predictor = branch_predictor->predictor;
+
+		/* initial loop predictor */
+		predictor->bp_loop = (BP_LOOP *)malloc(sizeof(BP_LOOP));
+		LOOP_Initial(predictor->bp_loop, width[TAGE_L], 10); // 默认是10 tag_width， 一般输入index_width=4
+
+		/* initial tage predictor */
+		predictor->bp_tage_sc = (BP_TAGE_B *)malloc(sizeof(BP_TAGE_B));
+		BP_TAGE_B *bp_tage_sc = predictor->bp_tage_sc;
+		
 		/* initial branch prediction table */
-		predictor->alt_bp = (BP_Bimodal *)malloc(sizeof(BP_Bimodal));
-		if (predictor->alt_bp == NULL)
+		bp_tage_sc->alt_bp = (BP_Bimodal *)malloc(sizeof(BP_Bimodal));
+		if (bp_tage_sc->alt_bp == NULL)
 			_error_exit("malloc")
-		BPT_Initial((BPT *)predictor->alt_bp, width[BIMODAL]);
-		/* initial tage*/
-		predictor->tage = (BP_TAGE *)malloc(sizeof(BP_TAGE));
-		predictor->tage->tage_without_base = (TAGE *)malloc(sizeof(TAGE));
-		TAGE_Initial(predictor->tage->tage_without_base);
+		BPT_Initial((BPT *)bp_tage_sc->alt_bp, width[BIMODAL]);
+		/* initial tage */
+		bp_tage_sc->tage = (BP_TAGE *)malloc(sizeof(BP_TAGE));
+		bp_tage_sc->tage->tage_without_base = (TAGE *)malloc(sizeof(TAGE));
+		TAGE_Initial(bp_tage_sc->tage->tage_without_base);
+
+		/* initial sc */
+		bp_tage_sc->tage->sc = (SC*)malloc(sizeof(SC));
+		SC_Initial(bp_tage_sc->tage->sc); // 没有参数传递
 
 		/* initial global history register */
-		predictor->tage->global_history_register = (GHR *)malloc(sizeof(GHR));
-		GHR_Initial(predictor->tage->global_history_register, tageHistLen);  // 先固定history再说
+		bp_tage_sc->tage->global_history_register = (GHR *)malloc(sizeof(GHR));
+		GHR_Initial(bp_tage_sc->tage->global_history_register, tageHistLen);  // 固定history
 		return;
 	}
 	}
@@ -198,17 +221,33 @@ Taken_Result Gshare_Predict(BP_Gshare *predictor, uint64_t addr)
 	return BPT_Predict(predictor->branch_prediction_table, index);
 }
 
-Tage_Meta* Tage_Predict(BP_TAGE *predictor, uint64_t addr)
+void Tage_Predict(BP_TAGE *predictor, uint64_t addr, Tage_Meta* tage_meta, SC_Meta* sc_meta, bool alt_pred)
 {
 	uint64_t ghist = predictor->global_history_register->history;
 	uint64_t unhashed_idx = Get_Index(addr, 62);  // 把pc[64:2]给传进去了
-	return TAGE_Predict(predictor->tage_without_base, unhashed_idx, ghist);
+	
+	TAGE_Predict(predictor->tage_without_base, unhashed_idx, ghist, tage_meta);
+
+	tage_meta->alt_pred = alt_pred;
+	tage_meta->alt_differs = tage_meta->provided ? tage_meta->provider_pred != alt_pred : 1;
+	
+	if (predictor->sc != NULL)
+	{
+		SC_Predict(predictor->sc, unhashed_idx, ghist, tage_meta, sc_meta);
+		#ifdef MyDBG1
+			if(sc_meta->sc_pred != sc_meta->tage_taken)
+			printf("sc is working; sc_pred: %d, sc_used: %d, tage_taken:%d\n", sc_meta->sc_pred, sc_meta->sc_used, sc_meta->tage_taken);
+		#endif
+	}
+	return;
 }
 
-Loop_Meta* Loop_Predict(BP_LOOP *predictor, uint64_t addr)
+
+void Loop_Predict(BP_LOOP *predictor, uint64_t addr, Loop_Meta* loop_meta)
 {
 	uint64_t unhashed_idx = Get_Index(addr, 62);  // 把pc[64:2]给传进去了
-	return LOOP_Predict(predictor, unhashed_idx);
+	LOOP_Predict(predictor, unhashed_idx, loop_meta);
+	return;
 }
 
 Result Predictor_Predict(uint64_t addr)
@@ -246,22 +285,27 @@ Result Predictor_Predict(uint64_t addr)
 		result.predict_taken[YEH_PATT] = BPT_Predict(predictor->branch_predition_table, history);
 		return result;
 	}
-	case tage_b:
+	case tage_b: // 确实tage+其他组件有很多重复代码，闲时可以优化
 	{
 		BP_TAGE_B *predictor = branch_predictor->predictor;
 
-		result.predict_taken[BIMODAL] = Bimodal_Predict(predictor->alt_bp, addr);
 		
-		Tage_Meta *tage_meta = Tage_Predict(predictor->tage, addr);
+		Tage_Meta* tage_meta = (Tage_Meta *)malloc(sizeof(Tage_Meta));
+		SC_Meta* sc_meta = NULL; // (SC_Meta*) malloc(sizeof(SC_Meta));
 
+		result.predict_taken[BIMODAL] = Bimodal_Predict(predictor->alt_bp, addr);
+
+		Tage_Predict(predictor->tage, addr, tage_meta, sc_meta, result.predict_taken[BIMODAL]);
+
+#ifdef MyDBG1
+		printf("%d\n", tage_meta->provided);
+		printf("-------------get passed------------alt_pred: %d, pvdr_pred: %d\n", tage_meta->alt_pred, tage_meta->provider_pred);
+#endif
 		result.predict_taken[TAGE_B] = tage_meta->provided ? tage_meta->provider_pred : result.predict_taken[BIMODAL];
-		tage_meta->alt_pred = result.predict_taken[BIMODAL];
-		tage_meta->alt_differs = tage_meta->provided ? tage_meta->provider_pred != tage_meta->alt_pred : 1;
-		#ifdef MyDBG1
-		if(tage_meta->alt_differs==1)
-			printf("addr: %lx, alt_differs: 0\n", addr, tage_meta->alt_differs);
-		#endif
+
 		result.meta_info[TAGE_B] = (Tage_Meta *)tage_meta;
+		if(sc_meta != NULL)
+			result.meta_info[TAGE_SC] = (SC_Meta *)sc_meta;
 		
 		return result;
 	}
@@ -274,18 +318,76 @@ Result Predictor_Predict(uint64_t addr)
 
 		result.predict_taken[BIMODAL] = Bimodal_Predict(bp_tage_b->alt_bp, addr);
 		
-		Tage_Meta *tage_meta = Tage_Predict(bp_tage_b->tage, addr);
+		Tage_Meta* tage_meta = (Tage_Meta *)malloc(sizeof(Tage_Meta));
+		SC_Meta* sc_meta = NULL; // (SC_Meta*) malloc(sizeof(SC_Meta));
+		Loop_Meta *loop_meta = (Loop_Meta *)malloc(sizeof(Loop_Meta));
+
+		Tage_Predict(bp_tage_b->tage, addr, tage_meta, sc_meta, result.predict_taken[BIMODAL]);
 
 		result.predict_taken[TAGE_B] = tage_meta->provided ? tage_meta->provider_pred : result.predict_taken[BIMODAL];
-		tage_meta->alt_pred = result.predict_taken[BIMODAL];
-		tage_meta->alt_differs = tage_meta->provided ? tage_meta->provider_pred != tage_meta->alt_pred : 1;
+
 		result.meta_info[TAGE_B] = (Tage_Meta *)tage_meta;
+		result.meta_info[TAGE_SC] = (SC_Meta *)sc_meta; // 这个无效
 
 
-		Loop_Meta *loop_meta = Loop_Predict(bp_loop, addr);
+		Loop_Predict(bp_loop, addr, loop_meta);
 
 		result.predict_taken[TAGE_L] = loop_meta->invert ? !result.predict_taken[TAGE_B] : result.predict_taken[TAGE_B];
 		result.meta_info[TAGE_L] = (Loop_Meta *)loop_meta;
+
+		// 不包括bimodal，2个predict_taken, 2个meta
+
+		return result;
+	}
+	case tage_sc:
+	{
+		BP_TAGE_SC *predictor = branch_predictor->predictor;
+
+		result.predict_taken[BIMODAL] = Bimodal_Predict(predictor->alt_bp, addr);
+		
+		Tage_Meta* tage_meta = (Tage_Meta *)malloc(sizeof(Tage_Meta));
+		SC_Meta* sc_meta = (SC_Meta*) malloc(sizeof(SC_Meta));
+
+		Tage_Predict(predictor->tage, addr, tage_meta, sc_meta, result.predict_taken[BIMODAL]);
+		
+		result.predict_taken[TAGE_B] = tage_meta->provided ? tage_meta->provider_pred : result.predict_taken[BIMODAL];
+		result.predict_taken[TAGE_SC] = sc_meta->sc_pred;
+		
+		result.meta_info[TAGE_B] = (Tage_Meta *)tage_meta;
+		result.meta_info[TAGE_SC] = (SC_Meta *)sc_meta;;
+		// 不包括bimodal，2个predict_taken, 2个meta
+		return result;
+	}
+	case tage_sc_l:
+	{
+		BP_TAGE_SC_L *predictor = branch_predictor->predictor;
+
+		BP_TAGE_SC *bp_tage_sc = predictor->bp_tage_sc;
+		BP_LOOP *bp_loop = predictor->bp_loop;
+
+		result.predict_taken[BIMODAL] = Bimodal_Predict(bp_tage_sc->alt_bp, addr);
+
+		Tage_Meta* tage_meta = (Tage_Meta *)malloc(sizeof(Tage_Meta));
+		SC_Meta* sc_meta = (SC_Meta*) malloc(sizeof(SC_Meta));
+		Loop_Meta *loop_meta = (Loop_Meta *)malloc(sizeof(Loop_Meta));
+
+		Tage_Predict(bp_tage_sc->tage, addr, tage_meta, sc_meta, result.predict_taken[BIMODAL]);
+
+		result.predict_taken[TAGE_B] = tage_meta->provided ? tage_meta->provider_pred : result.predict_taken[BIMODAL];
+
+		result.meta_info[TAGE_B] = (Tage_Meta *)tage_meta;
+		result.meta_info[TAGE_SC] = (SC_Meta *)sc_meta;
+		// result.meta_info[TAGE_SC_L] = NULL;
+
+		result.predict_taken[TAGE_SC] = sc_meta->sc_pred;
+
+		Loop_Predict(bp_loop, addr, loop_meta);
+
+		result.predict_taken[TAGE_L] = loop_meta->invert ? !result.predict_taken[TAGE_SC] : result.predict_taken[TAGE_SC];
+		result.meta_info[TAGE_L] = (Loop_Meta *)loop_meta;
+
+		result.predict_taken[TAGE_SC_L] = result.predict_taken[TAGE_L];
+		// 不包括bimodal，3个predict_taken 3个meta
 
 		return result;
 	}
@@ -317,6 +419,8 @@ void Tage_Update(BP_TAGE* predictor, uint64_t addr, Result result)
 	uint64_t ghist = predictor->global_history_register->history;
 	uint64_t unhashed_idx = Get_Index(addr, 62);  // 把pc[64:2]给传进去了
 	TAGE_Update(predictor->tage_without_base, unhashed_idx, ghist, result);
+	if(predictor->sc != NULL && result.meta_info[TAGE_SC] != NULL)
+		SC_Update(predictor->sc, unhashed_idx, ghist, result);
 	return GHR_Update(predictor->global_history_register, result);
 }
 
@@ -373,8 +477,26 @@ void Predictor_Update(uint64_t addr, Result result)
 	{
 		BP_TAGE_L *predictor = branch_predictor->predictor;
 		Bimodal_Update(predictor->bp_tage_b->alt_bp, addr, result);
-		Tage_Update(predictor->bp_tage_b->tage, addr, result);
 		Loop_Update(predictor->bp_loop, addr, result);	// loop_update内部只有在mispredict的时候才会加项
+		Tage_Update(predictor->bp_tage_b->tage, addr, result);
+
+		return;
+	}
+	case tage_sc:
+	{
+		BP_TAGE_SC *predictor = branch_predictor->predictor;
+		Bimodal_Update(predictor->alt_bp, addr, result);
+		Tage_Update(predictor->tage, addr, result);
+
+		return;
+
+	}
+	case tage_sc_l:
+	{
+		BP_TAGE_SC_L *predictor = branch_predictor->predictor;
+		Bimodal_Update(predictor->bp_tage_sc->alt_bp, addr, result);
+		Loop_Update(predictor->bp_loop, addr, result);	// loop_update内部只有在mispredict的时候才会加项， 需要先update_loop，free的问题，可以修改，之后有空改
+		Tage_Update(predictor->bp_tage_sc->tage, addr, result);
 
 		return;
 	}
@@ -432,6 +554,14 @@ void BP_fprintf(FILE *fp)  // 打印最后的final table
 		return;
 	}
 	case tage_l:
+	{
+		return;
+	}
+	case tage_sc:
+	{
+		return;
+	}
+	case tage_sc_l:
 	{
 		return;
 	}

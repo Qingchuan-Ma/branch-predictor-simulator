@@ -136,14 +136,14 @@ uint32_t TAGE_Compute_Index(uint64_t unhashed_idx, uint64_t ghist, uint32_t tabl
     return (unhashed_idx ^ TAGE_Compute_Folded_Hist(ghist, hist_len, folded_len)) & ((1 << folded_len)-1);
 }
 
-Tage_Meta* TAGE_Predict(TAGE* tage, uint64_t unhashed_idx, uint64_t ghist)
+void TAGE_Predict(TAGE* tage, uint64_t unhashed_idx, uint64_t ghist, Tage_Meta* tage_meta)
 {
     int32_t provider = -1;
     bool provided = false;
     uint32_t provider_pred = 0;
     uint32_t provider_u = 0;
     uint32_t provider_ctr = 0;
-    Tage_Meta* tage_meta = (Tage_Meta *)malloc(sizeof(Tage_Meta));
+    // Tage_Meta* tage_meta = (Tage_Meta *)malloc(sizeof(Tage_Meta));
     bool allocatable_slots[tageTableNum];
 
 
@@ -244,7 +244,7 @@ Tage_Meta* TAGE_Predict(TAGE* tage, uint64_t unhashed_idx, uint64_t ghist)
 		#endif
 
     // 硬件的wrbypass不需要实现，因为非cycle级没有延迟更新
-    return tage_meta;
+    return;
 }
 
 

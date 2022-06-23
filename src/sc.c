@@ -16,10 +16,10 @@
 
 uint32_t scTableInfo[scTableNum][3] = {
     // nSets, ctrbit,  hislen
-    {  512,       6,     0},
-    {  512,       6,     4},
-    {  512,       6,     10},
-    {  512,       6,     16}
+    {  1024,       6,     0},
+    {  1024,       6,     4},
+    {  1024,       6,     10},
+    {  1024,       6,     16}
 };
 
 
@@ -88,19 +88,20 @@ bool Sum_Above_Threshold(int32_t sc_table_sum, int32_t tage_ctr, uint32_t thresh
     return ((sc_table_sum > signed_thres - tage_ctr) && (total_sum >= 0)) || ((sc_table_sum < -signed_thres - tage_ctr) && (total_sum < 0));
 }
 
-SC_Meta* SC_Predict(SC* sc, uint64_t unhashed_idx, uint64_t ghist, Tage_Meta* tage_meta)
+void SC_Predict(SC* sc, uint64_t unhashed_idx, uint64_t ghist, Tage_Meta* tage_meta, SC_Meta* sc_meta)
 {
     bool tage_provided = tage_meta->provided;
-    bool taken = tage_provided ? tage_meta->provider_pred : tage_meta->alt_pred;
+    bool tage_taken = tage_provided ? tage_meta->provider_pred : tage_meta->alt_pred;  
+    // 这里和香山不一样诶，香山的tage taken是当!provider或者 providerUnconf 且选择器决定使用base的时候，为alt_pred；我们这里没有选择器，所以不太一样，会不会是因为这个导致sc效果不好？
 
-    SC_Meta* sc_meta = (SC_Meta*) malloc(sizeof(SC_Meta));
+    //SC_Meta* sc_meta = (SC_Meta*) malloc(sizeof(SC_Meta));
 
     int32_t sc_table_sum = 0;
 
     for (size_t i = 0; i < scTableNum; i++)
     {
         uint32_t index = SC_Compute_Index(unhashed_idx, ghist, i);
-        int32_t ctr = taken ? Get_Centered(sc->sc_tables[i].entry[index].taken_ctr) : Get_Centered(sc->sc_tables[i].entry[index].nontaken_ctr);
+        int32_t ctr = tage_taken ? Get_Centered(sc->sc_tables[i].entry[index].taken_ctr) : Get_Centered(sc->sc_tables[i].entry[index].nontaken_ctr);
         sc_table_sum += ctr;
         sc_meta->ctrs[i] = ctr;
     }
@@ -108,17 +109,21 @@ SC_Meta* SC_Predict(SC* sc, uint64_t unhashed_idx, uint64_t ghist, Tage_Meta* ta
     int32_t tage_prvd_ctr_centered = Get_Pvdr_Centered(tage_meta->provider_ctr);
 
     int32_t total_sum = sc_table_sum + tage_prvd_ctr_centered;
+    
+#ifdef MyDBG1
+		printf("sc_table_sum: %d, tage_ctr: %d, total_sum: %d\n", sc_table_sum, tage_prvd_ctr_centered, total_sum);
+#endif
 
     sc_meta->sc_used = tage_provided; // 只有使用过sc才会进行sc的更新
-    sc_meta->tage_taken = taken;
+    sc_meta->tage_taken = tage_taken;
 
     if(tage_provided && Sum_Above_Threshold(sc_table_sum, tage_prvd_ctr_centered, sc->scThreshold.thres))
         sc_meta->sc_pred = total_sum >= 0;
     else
-        sc_meta->sc_pred = taken;   //sc_pred永远是正确的，不管用没用sc，最后预测结果直接从sc_pred获得
+        sc_meta->sc_pred = tage_taken;   //sc_pred永远是正确的，不管用没用sc，最后预测结果直接从sc_pred获得
     
 
-    return sc_meta;
+    return;
 }
 
 
@@ -148,6 +153,7 @@ void SC_Update(SC* sc, uint64_t unhashed_idx, uint64_t ghist, Result result)
     bool sc_pred = sc_meta->sc_pred;
     bool tage_taken = sc_meta->tage_taken;
     bool taken = result.actual_taken;
+    bool sc_used = sc_meta->sc_used;
 
     int32_t* sc_old_ctrs = sc_meta->ctrs;
     uint32_t tage_provider_ctr = tage_meta->provider_ctr;
@@ -163,28 +169,42 @@ void SC_Update(SC* sc, uint64_t unhashed_idx, uint64_t ghist, Result result)
 
     int32_t update_sum_abs = abs(update_sum);
     uint32_t update_thres = (sc->scThreshold.thres << 3) + 21; // 香山是这么设计update_thres的，普遍的可能需要更改
+            #ifdef MyDBG1
+                    printf("update_thres: %d\n", update_thres);
+            #endif
     bool update_sum_above_thres = Sum_Above_Threshold(update_sum, tage_provider_ctr, update_thres);
 
-    // 更新sctables中的ctr
-    for (size_t i = 0; i < scTableNum; i++)
-    {
-        uint32_t index = SC_Compute_Index(unhashed_idx, ghist, i);
-        if(sc_pred != taken && !update_sum_above_thres) // 预测失败且没有超过update阈值，则需要更新ctr
-        {
-            if(tage_taken)
-                sc->sc_tables[i].entry[index].taken_ctr = Saturate_Inc_SCtr(sc_old_ctrs[i], sc->sc_tables->attributes.ctr_bits, taken);
-            else
-                sc->sc_tables[i].entry[index].nontaken_ctr = Saturate_Inc_SCtr(sc_old_ctrs[i], sc->sc_tables->attributes.ctr_bits, taken);
+            #ifdef MyDBG1
+            if(taken != tage_taken && taken == sc_pred)
+                printf("sc successed \n");
+            else if(taken == tage_taken && sc_pred != taken)
+                printf("sc failed \n");
+            #endif
+
+    if(sc_used){
+        if(sc_pred != taken || !update_sum_above_thres) // 预测失败或者没有超过update阈值，则需要更新ctr
+        {    
+            #ifdef MyDBG1
+                    printf("update sc ctrs\n");
+            #endif
+
+            for (size_t i = 0; i < scTableNum; i++)
+            {
+                uint32_t index = SC_Compute_Index(unhashed_idx, ghist, i);
+                {
+                    if(tage_taken)
+                        sc->sc_tables[i].entry[index].taken_ctr = Saturate_Inc_SCtr(sc_old_ctrs[i], sc->sc_tables->attributes.ctr_bits, taken);
+                    else
+                        sc->sc_tables[i].entry[index].nontaken_ctr = Saturate_Inc_SCtr(sc_old_ctrs[i], sc->sc_tables->attributes.ctr_bits, taken);
+                }
+            }
         }
+        
+        if (sc_pred != taken && (update_sum_abs >= sc->scThreshold.thres - 4) && (update_sum_abs <= sc->scThreshold.thres - 2)) // 更新threshold
+            Update_Threshold(sc, taken!= sc_pred);
     }
     
-    if (sc_pred != taken && update_sum_abs >= sc->scThreshold.thres - 4 && update_sum_abs <= sc->scThreshold.thres - 2) // 更新threshold
-        Update_Threshold(sc, taken!= sc_pred);
-    
-
-    
-
-    free(tage_meta);
+    //free(tage_meta);
     free(sc_meta);
     return;
 }
